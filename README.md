@@ -1,7 +1,15 @@
 # ECE6254-FinalProject
 
-For now, just open up the main.m and hit "run".
+There are two run methods:
 
-There is a variable within there that will determine the number of frames to run. 
+Matlab Script
+- Found within matlab/code/test_run2.m
+- Run the script, select the image, and out pops the synthetic image along with the original.
+- Modify or extend to this as needed.
 
-Change it if you want. Default = 100 frames.
+
+Matlab GUI
+- Found wihin matlab/gui/UavTracking.m
+- Run the gui, select the image, and the images are updated on the GUI.
+- Look at the handles.* for the background image.
+- Modify or extend to this as needed.
