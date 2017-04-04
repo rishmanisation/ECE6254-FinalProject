@@ -22,7 +22,7 @@ function varargout = UavTracking(varargin)
 
 % Edit the above text to modify the response to help UavTracking
 
-% Last Modified by GUIDE v2.5 01-Apr-2017 15:43:20
+% Last Modified by GUIDE v2.5 03-Apr-2017 18:41:35
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -56,7 +56,7 @@ function UavTracking_OpeningFcn(hObject, eventdata, handles, varargin)
 handles.output = hObject;
 
 % Default Variable Setting
-addpath( strcat( fileparts(pwd), '\matlab') );
+addpath( strcat( fileparts(pwd), '\gui') );
 addpath( strcat( fileparts(pwd), '\code'  ) );
 addpath( strcat( fileparts(pwd), '\images') );
 handles.generateSynthetic = 0;
@@ -114,7 +114,7 @@ end
 
 % Update Figure
 axes( handles.axesBackgroundImage );
-imshow( handles.backgroundImage, [] ); colorbar;
+imshow( handles.backgroundImage, [] );
 
 % Update Handles
 guidata(hObject, handles);
@@ -130,3 +130,107 @@ handles.generateSynthetic = get(hObject,'Value');
 
 % Update Handles
 guidata(hObject, handles);
+
+
+% --- Executes when selected object is changed in uipanel1.
+function uipanel1_SelectionChangeFcn(hObject, eventdata, handles)
+% hObject    handle to the selected object in uipanel1 
+% eventdata  structure with the following fields (see UIBUTTONGROUP)
+%	EventName: string 'SelectionChanged' (read only)
+%	OldValue: handle of the previously selected object or empty if none was selected
+%	NewValue: handle of the currently selected object
+% handles    structure with handles and user data (see GUIDATA)
+
+% Image location
+path = strcat( fileparts(pwd), '\images\');
+
+% Benchmark Images
+easy1Image   = strcat(path, 'autumn.tif');
+easy2Image   = strcat(path, 'autumn.tif');
+easy3Image   = strcat(path, 'autumn.tif');
+
+medium1Image = strcat(path, 'canoe.tif' );
+medium2Image = strcat(path, 'canoe.tif' );
+medium3Image = strcat(path, 'canoe.tif' );
+
+hard1Image   = strcat(path, 'forest.tif');
+hard2Image   = strcat(path, 'forest.tif');
+hard3Image   = strcat(path, 'forest.tif');
+
+% Determine which button was selected
+if     ( get(handles.radiobuttonEasy1,'Value') == 1 )
+    benchmarkImage = loadImage( easy1Image );
+elseif ( get(handles.radiobuttonEasy2,'Value') == 1 )
+    benchmarkImage = loadImage( easy2Image );
+elseif ( get(handles.radiobuttonEasy3,'Value') == 1 )
+    benchmarkImage = loadImage( easy3Image );
+elseif ( get(handles.radiobuttonMedium1,'Value') == 1 )
+    benchmarkImage = loadImage( medium1Image );
+elseif ( get(handles.radiobuttonMedium2,'Value') == 1 )
+    benchmarkImage = loadImage( medium2Image );
+elseif ( get(handles.radiobuttonMedium3,'Value') == 1 )
+    benchmarkImage = loadImage( medium3Image );
+elseif ( get(handles.radiobuttonHard1,'Value') == 1 )
+    benchmarkImage = loadImage( hard1Image );
+elseif ( get(handles.radiobuttonHard2,'Value') == 1 )
+    benchmarkImage = loadImage( hard2Image );
+elseif ( get(handles.radiobuttonHard3,'Value') == 1 )
+    benchmarkImage = loadImage( hard3Image );
+else
+    %n/a
+end
+
+% Set selected image
+handles.selectedImage = benchmarkImage;
+
+% Decsion selection between generic background images and synthetic
+% background images.
+if handles.generateSynthetic == 0
+
+    % Compute Image's PSD
+    [nuImage,  PfImage]   = raPsd2d( handles.selectedImage, 1 );
+
+    % Update Figure
+    axes( handles.axesImagePSD );
+    plotSinglePSD(nuImage, PfImage);
+    
+    % Update Background Image
+    handles.backgroundImage = handles.selectedImage;
+
+else
+    
+    % Update Figure
+    axes( handles.axesImagePSD );
+    
+    % Plots the PSD figure within function
+    [ handles.backgroundImage ] = computeSyntheticImage( handles.selectedImage );
+    
+end
+
+% Update Figure
+axes( handles.axesBackgroundImage );
+imshow( handles.backgroundImage, [] );
+
+% Update Handles
+guidata(hObject, handles);
+
+
+% --- Executes on button press in pushbutton2.
+function pushbutton2_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton3.
+function pushbutton3_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton5.
+function pushbutton5_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton5 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)

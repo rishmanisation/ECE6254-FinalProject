@@ -1,19 +1,27 @@
-function [ ImageCropped ] = loadImage( )
+function [ ImageCropped ] = loadImage( preSelectedImage )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
 %% Load Image
 
-% Manual Image Selection
-path = strcat( fileparts(pwd), '\images');
-[filename,filepath] = uigetfile(fullfile(path , '*'), 'Select an Image');
+% Only allow image selection if one is not provided
+if nargin == 0
+    % Manual Image Selection
+    path = strcat( fileparts(pwd), '\images');
+    [filename,filepath] = uigetfile(fullfile(path , '*'), 'Select an Image');
 
-% Auto Image Selection
-% filepath = 'C:\Users\Ben\Desktop\ECE6254\FinalProject\code\images\';
-% filename = 'autumn.tif';
+    % Auto Image Selection
+    % filepath = 'C:\Users\Ben\Desktop\ECE6254\FinalProject\code\images\';
+    % filename = 'autumn.tif';
 
-fprintf('Loading Input Image: %s \n', filename);
-[ Image map ] = imread( strcat(filepath, filename) );
+    fprintf('Loading Input Image: %s \n', filename);
+    [ Image map ] = imread( strcat(filepath, filename) );
+else
+
+    fprintf('Loading Input Image: %s \n', preSelectedImage);
+    [ Image map ] = imread( preSelectedImage );
+    
+end
 
 %% Pre-Processing
 % Generic processing techniques for converting input images into an
