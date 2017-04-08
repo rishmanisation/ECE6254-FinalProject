@@ -13,6 +13,10 @@ alphaX = targetInfo.sizeX / (2*targetInfo.stdX);
 alphaY = targetInfo.sizeY / (2*targetInfo.stdY);
 
 % Generate the Target
+%target = gausswin(targetInfo.sizeY)* ...
+%         gausswin(targetInfo.sizeX)';
+
+% Generate the Target (Alpha characteristics included)
 target = gausswin(targetInfo.sizeY, alphaY)* ...
          gausswin(targetInfo.sizeX, alphaX)';
 
