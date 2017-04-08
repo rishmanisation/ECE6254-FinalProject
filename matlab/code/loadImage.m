@@ -37,7 +37,7 @@ if ~isempty(map)
     
     % Convert to 16 bits which helps reduce quantization errors when
     % compared to an 8 bit image.
-    Image = im2uint16(Image);
+    Image = im2uint8(Image);
 end
 
 % Convert to Gray Scale
@@ -55,6 +55,12 @@ end
 ImageClass    = class( Image );
 ImageOriginal = Image;
 Image         =  cast( Image, 'double' );
+
+% Need to resize the image if it is too big. Large images increase the
+% complexity of synthetic scenes. For now, just reduce the size and focus
+% on the processing, we can remove this later.
+
+Image = imresize(Image, [480,320]);
 
 % Crop to a square image.
 % Cropping the image to a square is done to improve the PSD estimation and

@@ -145,17 +145,17 @@ function uipanel1_SelectionChangeFcn(hObject, eventdata, handles)
 path = strcat( fileparts(pwd), '\images\');
 
 % Benchmark Images
-easy1Image   = strcat(path, 'autumn.tif');
-easy2Image   = strcat(path, 'autumn.tif');
-easy3Image   = strcat(path, 'autumn.tif');
+easy1Image   = strcat(path, 'cloud1.jpg');
+easy2Image   = strcat(path, 'cloud2.jpg');
+easy3Image   = strcat(path, 'cloud3.jpg');
 
-medium1Image = strcat(path, 'canoe.tif' );
-medium2Image = strcat(path, 'canoe.tif' );
-medium3Image = strcat(path, 'canoe.tif' );
+medium1Image = strcat(path, 'hill1.jpg' );
+medium2Image = strcat(path, 'hill2.jpg' );
+medium3Image = strcat(path, 'hill3.jpg' );
 
-hard1Image   = strcat(path, 'forest.tif');
-hard2Image   = strcat(path, 'forest.tif');
-hard3Image   = strcat(path, 'forest.tif');
+hard1Image   = strcat(path, 'woods1.jpg');
+hard2Image   = strcat(path, 'woods2.jpg');
+hard3Image   = strcat(path, 'woods3.jpg');
 
 % Determine which button was selected
 if     ( get(handles.radiobuttonEasy1,'Value') == 1 )
