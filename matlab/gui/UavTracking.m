@@ -22,7 +22,7 @@ function varargout = UavTracking(varargin)
 
 % Edit the above text to modify the response to help UavTracking
 
-% Last Modified by GUIDE v2.5 03-Apr-2017 18:41:35
+% Last Modified by GUIDE v2.5 10-Apr-2017 20:23:59
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -59,7 +59,10 @@ handles.output = hObject;
 addpath( strcat( fileparts(pwd), '\gui') );
 addpath( strcat( fileparts(pwd), '\code'  ) );
 addpath( strcat( fileparts(pwd), '\images') );
+addpath( strcat( fileparts(pwd), '\exampleKalman') );
+
 handles.generateSynthetic = 0;
+set(handles.pushbuttonStopTrack, 'UserData', 0);
 
 % Update handles structure
 guidata(hObject, handles);
@@ -222,15 +225,183 @@ function pushbutton2_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-% --- Executes on button press in pushbutton3.
-function pushbutton3_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton3 (see GCBO)
+% --- Executes on button press in pushbuttonStartTrack.
+function pushbuttonStartTrack_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbuttonStartTrack (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+% This is the data passed in through the handles structure. Its a
+% convenient way of passing data to the functions locally. I'll try and
+% label everything efficiently for ya.
+% handles.trackingImage - Image with background and target
+% handles.targetLocation - Actual target location
+%   targetLocation.x     - x location (Array with each data point being a )
+%   targetLocation.y     - y location (time slice.                        )
+%                                       
 
-% --- Executes on button press in pushbutton5.
-function pushbutton5_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton5 (see GCBO)
+% Throw error message if the proper handles data isn't present.
+set(handles.textError, 'backgroundColor', [0.94 0.94 0.94]);
+
+if ~isfield(handles, 'backgroundMade')
+    set(handles.textError, 'String', 'Background Not Generated');
+    error = 1;
+elseif ~isfield(handles, 'targetMade')
+    set(handles.textError, 'String', 'Target Not Generated');
+    error = 1;
+elseif ~isfield(handles, 'trackingImage')
+    set(handles.textError, 'String', 'TrackingImage Not Generated');
+    error = 1;
+elseif ~isfield(handles, 'targetLocation')
+    set(handles.textError, 'String', 'Target Movement Not Specified');
+    error = 1;
+else
+    error = 0;
+end
+    
+    
+% Check for any errors
+if error == 1
+    % Will skip the normal operation
+    set(handles.textError, 'backgroundColor', 'red');
+else
+    
+
+    % Rish: This is an example of the kalman filter elemements you will need
+    % and where to instantiate them for the running of the tracker.
+
+    % When we have the proper handles structure setup, we can uncomment these
+    % and remove the hard coded values.
+    % centroid_x = handles.targetLocation.x(1);
+    % centroid_y = handles.targetLocation.y(1);
+    centroid_x = 128;
+    centroid_y = 128;
+
+    Z = [centroid_x;centroid_y;0;0];    % Initial Location.
+    X = Z;                              % Set the Inital location to the current location.
+    location_estimate = [];
+
+    dt = 1;
+    process_noise = 0.2;               % How fast the object is speeding/slowing (acceleration)
+                                       % Increasing this variable improves
+                                       % reaction to the object, but you
+                                       % become more susceptable to noise.
+
+    measurement_noise = [   1   0
+                            0   1];     % Noise in the measurements
+                                        % Increasing this variable reduces
+                                        % your susceptability to noise in
+                                        % the environment but increases lag
+                                        % time.
+                                        % TL = Noise in x, BR = noise in y
+
+    P = [   dt^4/4  0       dt^3/2  0;  % Initial positions variance.
+            0       dt^4/4  0       dt^3/2;
+            dt^3/2  0       dt^2    0;
+            0       dt^3/2  0       dt^2].*process_noise^2;
+
+    process_noise = P;                  % Process noise matrix
+
+    % State Transition Matrix
+    % State prediciton of the position.
+    A = [   1   0   dt  0   
+            0   1   0   dt  
+            0   0   1   0   
+            0   0   0   1];
+
+    % Predicted Motion
+    B = [   dt^2/2
+            dt^2/2
+            dt
+            dt]; 
+
+    % Hyeon: This is the location where you will initialize you data elements
+    % for the MLE.
+    imageMLE = zeros(size(128,128));
+
+
+    % Clear the intrrupt if it's already been pushed
+    set(handles.pushbuttonStopTrack, 'UserData', 0);
+
+    % This loop creates a "video" like representation
+    for frameNumber = 1 : 10000
+
+        % Check to see if the user has clicked the 'Stop Tracking' button
+        if get(handles.pushbuttonStopTrack, 'UserData') == 1
+            % Clear the button
+            set(handles.pushbuttonStopTrack, 'UserData', 0);
+            % Break out of the loop
+            break;
+        end
+
+        %% Target Analysis
+        % Hyeon: This is where you will be adding your MLE code.
+        % 1) Acquire the target and border region data
+        % 2) Apply your thresholding with the MLE
+
+        % It will look something like this...
+        %[ topRegion, leftRegion, rightRegion, bottomRegion, targetRegion ] = ...
+        %    MLE_AcquireRegions( finalImage, frameInfo, targetInfo, targetLocationInfo );
+        %
+        % Now threshold the image
+        % imageMLE = ML();
+
+        % With the image now binary, there will be some errors. These can
+        % consitute erroneous pixels not in the target or pixels that were
+        % supposed to be the target but arent. For now, we will apply the
+        % simple methods to help fix those:
+        % 1) Dilation and Erosion - Fill holes
+        % 2) Noise Spike Removal
+        % 3) Image Blurring
+        %
+        % Finally, we will find the centroid of the target
+        %
+        % centroid = centroidFunction( imageMLE );
+
+
+        %% Future Target Location Estimation
+        % Rish: This is where you will add your kalman filtering code.
+        % 1) Kalman Filter - Find estimated location on next frame
+        % 2) Produce Error Graph - Show user how well we are doing
+
+        % Update location
+        Z = [centroid_x;centroid_y;0;0];
+
+        % Estimate the next location
+        [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
+
+        % Update the running estimations
+        location_estimate = [location_estimate; X(1:2)];
+
+        % Display the Image with a crosshair on the estimate location.
+        % image = addCrosshairs( image );
+
+        % Display an image with the error between the estimate location and the
+        % actual location.
+        % plot( error (red), actual (black) );
+
+        % Update the images.
+        drawnow;
+
+    end
+    
+end
+
+fprintf('Im done fool. \n');
+
+% Update Handles
+guidata(hObject, handles);
+
+% --- Executes on button press in pushbuttonStopTrack.
+function pushbuttonStopTrack_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbuttonStopTrack (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+% We pass data to the push buttons local structure so that we can pass data
+% in between the callbacks. We cannot use the handles because they are only
+% local copies from when they were called and will not notice the change.
+set(handles.pushbuttonStopTrack, 'UserData', 1);
+
+% Update Handles
+guidata(hObject, handles);
