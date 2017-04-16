@@ -15,7 +15,7 @@ end
 
 scale_factor = D/max(Y,X);
 
-% Image = imresize(Image, scale_factor);
-% disp(scale_factor(1));
-alpha = not (Image == 255);
+Image = imresize(Image, scale_factor);
+alpha = (Image == 255);
+Image = cast(Image, 'double');
 return

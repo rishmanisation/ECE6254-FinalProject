@@ -22,7 +22,7 @@ function varargout = UavTracking(varargin)
 
 % Edit the above text to modify the response to help UavTracking
 
-% Last Modified by GUIDE v2.5 15-Apr-2017 22:48:05
+% Last Modified by GUIDE v2.5 16-Apr-2017 17:25:02
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -442,14 +442,14 @@ end
 
 axes( handles.axesTargetMotion );
 [Y,X] = size(handles.selectedImage);
-plot(P(:,1),P(:,2));
+plot(P(:,1),-P(:,2));
 xlim([ 0, X ]);
 ylim([ -Y, 0 ]);
 
 UAVImage   = '..\images\UAV.jpg';
 UFOImage   = '..\images\UFO.jpg';
 HELImage   = '..\images\Helicopter.jpg';
-targetSize = get(handles.sizeText,'string');
+targetSize = str2num(get(handles.targetSizeText,'string'));
 
 
 if     ( get(handles.radiobuttonUFO,'Value') == 1 )
@@ -464,7 +464,7 @@ elseif ( get(handles.radiobuttonUAV,'Value') == 1 )
 end
 
 axes( handles.axesTarget );
-imshow(target_im);
+imshow(cast(target_im,'uint8'));
 
 % Update Handles
 guidata(hObject, handles);
@@ -541,7 +541,7 @@ end
     
 if (get(handles.posCheck, 'Value') == 1)
     [Y,X] = size(handles.selectedImage);
-    set(handles.posText,'string',num2str([randi(X) -randi(Y)]));
+    set(handles.posText,'string',num2str([randi(X) randi(Y)]));
 end
 if (get(handles.massCheck, 'Value') == 1)
     set(handles.massText,'string',num2str(100*rand(1)));
@@ -575,23 +575,3 @@ set(handles.speedText,'Enable','off')
 
 
 
-function sizeText_Callback(hObject, eventdata, handles)
-% hObject    handle to sizeText (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of sizeText as text
-%        str2double(get(hObject,'String')) returns contents of sizeText as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function sizeText_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to sizeText (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end

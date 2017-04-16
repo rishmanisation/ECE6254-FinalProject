@@ -26,7 +26,7 @@ fA = @(t) 9.8*mass*t;
 switch pType
     case 'b'
         fx = @(t,p0,v) p0 + t*v*(spd*Ts);
-        fy = @(t,p0,v) p0 + t*v*(spd*Ts) - mass*t.^2;
+        fy = @(t,p0,v) p0 + t*v*(spd*Ts) + mass*t.^2;
         P = [fx(t, pos(1), vel(1)), fy(t, pos(2), vel(2)) - fA(t)];
     case 'c' 
         P = [pos(1) + mass*cos(2*pi*(spd*Ts)*t), pos(2) + mass*sin(2*pi*(spd*Ts)*t)];
