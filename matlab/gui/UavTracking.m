@@ -22,7 +22,7 @@ function varargout = UavTracking(varargin)
 
 % Edit the above text to modify the response to help UavTracking
 
-% Last Modified by GUIDE v2.5 10-Apr-2017 20:23:59
+% Last Modified by GUIDE v2.5 15-Apr-2017 22:48:05
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -405,3 +405,193 @@ set(handles.pushbuttonStopTrack, 'UserData', 1);
 
 % Update Handles
 guidata(hObject, handles);
+
+
+
+% --- If Enable == 'on', executes on mouse press in 5 pixel border.
+% --- Otherwise, executes on mouse press in 5 pixel border or over genTargetButton.
+function genTargetButton_Callback(hObject, eventdata, handles)
+% hObject    handle to genTargetButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+pos = str2num(get(handles.posText,'string'));
+angle = str2double(get(handles.angleText, 'string'));
+vel = [cosd(angle) sind(angle)];
+spd = str2num(get(handles.speedText,'string'));
+mass = str2num(get(handles.massText,'string'));
+
+
+Ts = 1/30; %assuming 30fps?
+Fmax = 10000; %max frame number taken from above
+
+% Determine which button was selected
+if     ( get(handles.radiobuttonFigure8,'Value') == 1 )
+    P = genPath(pos, vel, spd, Ts, Fmax, 'f' , mass);
+elseif ( get(handles.radiobuttonBalistic,'Value') == 1 )
+    P = genPath(pos, vel, spd, Ts, Fmax, 'b', mass);
+elseif ( get(handles.radiobuttonCircular,'Value') == 1 )
+    P = genPath(pos, vel, spd, Ts, Fmax, 'c', mass);
+elseif ( get(handles.radiobuttonLinear,'Value') == 1 )
+    P = genPath(pos, vel, spd, Ts, Fmax, 's', mass);
+elseif ( get(handles.radiobuttonHover,'Value') == 1 )
+    P = genPath(pos, vel, spd, Ts, Fmax, 'h', mass);
+else
+    %n/a
+end
+
+axes( handles.axesTargetMotion );
+[Y,X] = size(handles.selectedImage);
+plot(P(:,1),P(:,2));
+xlim([ 0, X ]);
+ylim([ -Y, 0 ]);
+
+UAVImage   = '..\images\UAV.jpg';
+UFOImage   = '..\images\UFO.jpg';
+HELImage   = '..\images\Helicopter.jpg';
+targetSize = get(handles.sizeText,'string');
+
+
+if     ( get(handles.radiobuttonUFO,'Value') == 1 )
+    [target_im,t_alpha] = loadTargetImage(UFOImage, targetSize);
+elseif ( get(handles.radiobuttonHelicopter,'Value') == 1 )
+    [target_im,t_alpha] = loadTargetImage(HELImage, targetSize);
+elseif ( get(handles.radiobuttonUAV,'Value') == 1 )
+    [target_im,t_alpha] = loadTargetImage(UAVImage, targetSize);
+elseif ( get(handles.radiobuttonUAV,'Value') == 1 )
+    set(handles.textError, 'String', 'Synthetic Not Implemented Yet');
+    error = 1;
+end
+
+axes( handles.axesTarget );
+imshow(target_im);
+
+% Update Handles
+guidata(hObject, handles);
+
+
+
+% --- Executes on button press in posCheck.
+function posCheck_Callback(hObject, eventdata, handles)
+% hObject    handle to posCheck (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of posCheck
+
+if (get(handles.posCheck, 'Value') == 1)
+    set(handles.posText,'Enable','off')
+else
+    set(handles.posText,'Enable','on')
+end
+
+
+% --- Executes on button press in massCheck.
+function massCheck_Callback(hObject, eventdata, handles)
+% hObject    handle to massCheck (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of massCheck
+if (get(handles.massCheck, 'Value') == 1)
+    set(handles.massText,'Enable','off')
+else
+    set(handles.massText,'Enable','on')
+end
+
+
+% --- Executes on button press in angleCheck.
+function angleCheck_Callback(hObject, eventdata, handles)
+% hObject    handle to angleCheck (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of angleCheck
+if (get(handles.angleCheck, 'Value') == 1)
+    set(handles.angleText,'Enable','off')
+else
+    set(handles.angleText,'Enable','on')
+end
+
+
+% --- Executes on button press in speedCheck.
+function speedCheck_Callback(hObject, eventdata, handles)
+% hObject    handle to speedCheck (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of speedCheck
+if (get(handles.speedCheck, 'Value') == 1)
+    set(handles.speedText,'Enable','off')
+else
+    set(handles.speedText,'Enable','on')
+end
+
+
+% --- Executes on button press in fillRandButton.
+function fillRandButton_Callback(hObject, eventdata, handles)
+% hObject    handle to fillRandButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+if ~isfield(handles, 'backgroundMade')
+    set(handles.textError, 'String', 'Background Not Generated');
+    error = 1;
+end
+    
+if (get(handles.posCheck, 'Value') == 1)
+    [Y,X] = size(handles.selectedImage);
+    set(handles.posText,'string',num2str([randi(X) -randi(Y)]));
+end
+if (get(handles.massCheck, 'Value') == 1)
+    set(handles.massText,'string',num2str(100*rand(1)));
+end
+if (get(handles.angleCheck, 'Value') == 1)
+    set(handles.angleText,'string',num2str(360*rand(1)))
+end
+if (get(handles.speedCheck, 'Value') == 1)
+    set(handles.speedText,'string',num2str(400*rand(1)))
+end
+
+guidata(hObject, handles);
+
+
+% --- Executes on button press in allRandButton.
+function allRandButton_Callback(hObject, eventdata, handles)
+% hObject    handle to allRandButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+set(handles.posCheck, 'Value', 1);
+set(handles.massCheck, 'Value', 1);
+set(handles.angleCheck, 'Value', 1);
+set(handles.speedCheck, 'Value', 1);
+
+set(handles.posText,'Enable','off')
+set(handles.massText,'Enable','off')
+set(handles.angleText,'Enable','off')
+set(handles.speedText,'Enable','off')
+
+
+
+
+function sizeText_Callback(hObject, eventdata, handles)
+% hObject    handle to sizeText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of sizeText as text
+%        str2double(get(hObject,'String')) returns contents of sizeText as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function sizeText_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to sizeText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
