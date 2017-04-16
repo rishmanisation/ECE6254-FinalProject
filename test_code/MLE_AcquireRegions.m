@@ -1,4 +1,4 @@
-function [ top, left, right, bottom, target ] = MLE_AcquireRegions( image, frameInfo, targetInfo, targetLocationInfo )
+function [ top, left, right, bottom, target,imageOverlay ] = MLE_AcquireRegions( image, frameInfo, targetInfo, targetLocationInfo )
 %MLE_AcquireRegions Acquire MLE region statistics
 %   Detailed explanation goes here
 
@@ -43,10 +43,10 @@ rightBorderY = targetY;
 
 % Find the start/end positions within the image
 
-targetXStart = targetLocationInfo.x - floor(targetX/2);
-targetXEnd   = targetLocationInfo.x + floor(targetX/2);
-targetYStart = targetLocationInfo.y - floor(targetY/2);
-targetYEnd   = targetLocationInfo.y + floor(targetY/2);
+targetXStart = targetLocationInfo.y - floor(targetX/2);
+targetXEnd   = targetLocationInfo.y + floor(targetX/2);
+targetYStart = targetLocationInfo.x - floor(targetY/2);
+targetYEnd   = targetLocationInfo.x + floor(targetY/2);
 
 topBorderXStart = targetXStart - bufferSize;
 topBorderXEnd   = targetXEnd   + bufferSize;
@@ -87,12 +87,12 @@ if debug == 1
     imageOverlay( targetYStart:targetYEnd, targetXStart ) = tgt;
     imageOverlay( targetYStart:targetYEnd, targetXEnd   ) = tgt;
 
-    % Top Border
+%     % Top Border
     imageOverlay( topBorderYStart, topBorderXStart:topBorderXEnd ) = top;
     imageOverlay( topBorderYEnd,   topBorderXStart:topBorderXEnd ) = top;
     imageOverlay( topBorderYStart:topBorderYEnd, topBorderXStart ) = top;
     imageOverlay( topBorderYStart:topBorderYEnd, topBorderXEnd   ) = top;
-
+% 
     % Bottom Border
     imageOverlay( bottomBorderYStart, bottomBorderXStart:bottomBorderXEnd ) = bottom;
     imageOverlay( bottomBorderYEnd,   bottomBorderXStart:bottomBorderXEnd ) = bottom;
@@ -111,8 +111,8 @@ if debug == 1
     imageOverlay( rightBorderYStart:rightBorderYEnd, rightBorderXStart ) = right;
     imageOverlay( rightBorderYStart:rightBorderYEnd, rightBorderXEnd   ) = right;
 
-    % figure;
-    imagesc(imageOverlay); colorbar;
+%     figure;
+%     imshow(imageOverlay/255);% colorbar;
 end
 
 % Return the statistics for each region
@@ -123,4 +123,3 @@ left    = image( leftBorderYStart  : leftBorderYEnd,   leftBorderXStart  : leftB
 right   = image( rightBorderYStart : rightBorderYEnd,  rightBorderXStart : rightBorderXEnd  );
 
 end
-

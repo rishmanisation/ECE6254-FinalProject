@@ -1,4 +1,4 @@
-function [ targetMovImage location ] = moveTarget( frameInfo, targetImage, targetLocationInfo )
+function [ targetMovImage, location ] = moveTarget( frameInfo, targetImage, targetLocationInfo )
 %moveTarget - Adds movement to the target. For now, it's
 % simply some random movement. This could be more complex
 % if needed.
@@ -28,8 +28,8 @@ location.y = targetLocationInfo.y + movY;
 % Translate Target
 % Notice that the target is always generated in the center of the image.
 % This requires the offsets to be applied.
-translate.x = frameInfo.vpix/2 - location.x;
-translate.y = frameInfo.vlin/2 - location.y;
+translate.x = frameInfo.vpix/2 + location.x;
+translate.y = frameInfo.vlin/2 + location.y;
 
 targetMovImage = circshift(targetImage, [translate.x translate.y]);
 

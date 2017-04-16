@@ -22,7 +22,7 @@ function varargout = UavTracking(varargin)
 
 % Edit the above text to modify the response to help UavTracking
 
-% Last Modified by GUIDE v2.5 16-Apr-2017 17:25:02
+% Last Modified by GUIDE v2.5 16-Apr-2017 21:08:44
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -119,6 +119,9 @@ end
 axes( handles.axesBackgroundImage );
 imshow( handles.backgroundImage, [] );
 
+% Instruct everyone that we've generated the background
+handles.backgroundMade = 1;
+
 % Update Handles
 guidata(hObject, handles);
 
@@ -214,6 +217,9 @@ end
 axes( handles.axesBackgroundImage );
 imshow( handles.backgroundImage, [] );
 
+% Instruct everyone that we've generated the background
+handles.backgroundMade = 1;
+
 % Update Handles
 guidata(hObject, handles);
 
@@ -279,8 +285,11 @@ else
 
     Z = [centroid_x;centroid_y;0;0];    % Initial Location.
     X = Z;                              % Set the Inital location to the current location.
+    
     location_estimate = [];
-
+    location_actual = [];
+    location_diff = [];
+    
     dt = 1;
     process_noise = 0.2;               % How fast the object is speeding/slowing (acceleration)
                                        % Increasing this variable improves
@@ -314,7 +323,11 @@ else
             dt^2/2
             dt
             dt]; 
-
+    
+    % These are the state transition functions for extended Kalman filter
+    f = @(x)[x(4);x(3);x(2);0.05*x(1)*(x(2)+x(3)+x(4))];  % nonlinear state equations
+    h = @(x)x(1);                               % measurement equation
+    
     % Hyeon: This is the location where you will initialize you data elements
     % for the MLE.
     imageMLE = zeros(size(128,128));
@@ -322,10 +335,21 @@ else
 
     % Clear the intrrupt if it's already been pushed
     set(handles.pushbuttonStopTrack, 'UserData', 0);
-
+    
+    [ x, y, numFrames ] = size( handles.trackingImage );
+    original_image = handles.trackingImage; % would this line make sense?
+    % HK Addon
+    [r_im,c_im] = size(original_image);
+    targetInformation = handles.targetInfo;
+    targetLoc.x = handles.targetLocation.x(1);
+    targetLoc.y = handles.targetLocation.y(1);
+    frameInfo.vlin = r_im;
+    frameInfo.vpix = c_im;
     % This loop creates a "video" like representation
-    for frameNumber = 1 : 10000
-
+    for frameNumber = 1 : numFrames
+        
+        input_image = handles.trackingImage(:,:,frameNumber);
+       
         % Check to see if the user has clicked the 'Stop Tracking' button
         if get(handles.pushbuttonStopTrack, 'UserData') == 1
             % Clear the button
@@ -338,14 +362,21 @@ else
         % Hyeon: This is where you will be adding your MLE code.
         % 1) Acquire the target and border region data
         % 2) Apply your thresholding with the MLE
-
+         [ top, left, right, bottom, target,imageOverlay] = MLE_AcquireRegions_HK( input_image, frameInfo, targetInformation, targetLoc);
         % It will look something like this...
         %[ topRegion, leftRegion, rightRegion, bottomRegion, targetRegion ] = ...
         %    MLE_AcquireRegions( finalImage, frameInfo, targetInfo, targetLocationInfo );
         %
         % Now threshold the image
         % imageMLE = ML();
-
+        [phat,image_thresh]=MLE_image( top, left, right, bottom, target);
+        
+        %I would need to do something with this image_tresh which has four
+        %things: probabilty comparison between the top region vs target,
+        %bottom region vs target, right vs target, and left vs target 
+        
+%         image_sum = image_thresh(:,:,1)+image_thresh(:,:,2)+image_thresh(:,:,3)+image_thresh(:,:,4);
+%         handles.trackingImage(:,:,frameNumber) = imageOverlay;
         % With the image now binary, there will be some errors. These can
         % consitute erroneous pixels not in the target or pixels that were
         % supposed to be the target but arent. For now, we will apply the
@@ -356,35 +387,66 @@ else
         %
         % Finally, we will find the centroid of the target
         %
-        % centroid = centroidFunction( imageMLE );
-
+        [centroid_x, centroid_y] = centroidFunction( image_sum );
+%         targetLoc.x = centroid_x;
+%         targetLoc.y = centroid_y;
 
         %% Future Target Location Estimation
         % Rish: This is where you will add your kalman filtering code.
         % 1) Kalman Filter - Find estimated location on next frame
         % 2) Produce Error Graph - Show user how well we are doing
 
-        % Update location
-        Z = [centroid_x;centroid_y;0;0];
-
-        % Estimate the next location
+        Z = [centroid_x;centroid_y; 0; 0];    % Updated Location
+        
+        % Kalman filter
         [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
+        
+        % Extended Kalman filter. Uncomment this and comment the above line
+        % to use extended Kalman.
+        % [X,P] = ext_kalman_filter(X,P,Z,measurement_noise,process_noise,f,h);
+        
+        % Now we save the location estimates so that we can have a
+        % real-time plot of how our tracking algorithms are doing.
+        locationEstimate  = X(1:2);
+        locationActual    = [ handles.targetLocation.x(frameNumber); handles.targetLocation.y(frameNumber)];
+        diff              = abs(locationEstimate - locationActual);
+        location_diff     = [location_diff diff];     
+        
+        % Error Plot: We select the appropriate plot from the GUI to be
+        % what we will be displaying upon
+        axes( handles.axesTargetPerformance );
+        
+        hold on;
+        grid on;
+            plot( location_diff(1,:),  location_diff(2,:),  'r');
+        hold off;
 
-        % Update the running estimations
-        location_estimate = [location_estimate; X(1:2)];
-
-        % Display the Image with a crosshair on the estimate location.
+        % Display the Image with a crosshair on the estimate location. In
+        % the future, we can add more detailed crosshairs which look a bit
+        % better than a single dot on the image.
         % image = addCrosshairs( image );
 
-        % Display an image with the error between the estimate location and the
-        % actual location.
-        % plot( error (red), actual (black) );
-
+        % Display the image with the crosshairs overlayed to aid the user
+        % in identifying the estimated location.
+        axes( handles.axesTracking );
+        imshow( handles.trackingImage(:,:,frameNumber), [] );
+        
+        hold on
+            % Actual Location
+            plot( handles.targetLocation.x(frameNumber), ...
+                  handles.targetLocation.y(frameNumber), ...
+                  '-.*k');                          
+            
+            % Estimate Location
+            plot(X(1),X(2), 'o');                   
+        hold off
+        targetLoc.x = floor(handles.targetLocation.x(frameNumber));
+        targetLoc.y = floor(handles.targetLocation.y(frameNumber));
         % Update the images.
         drawnow;
 
     end
-    
+   
 end
 
 fprintf('Im done fool. \n');
@@ -422,16 +484,30 @@ spd = str2num(get(handles.speedText,'string'));
 mass = str2num(get(handles.massText,'string'));
 
 
-Ts = 1/30; %assuming 30fps?
-Fmax = 10000; %max frame number taken from above
+Ts = 1/1; %assuming 30fps?
+Fmax = 30; %max frame number taken from above
 
 % Determine which button was selected
 if     ( get(handles.radiobuttonFigure8,'Value') == 1 )
     P = genPath(pos, vel, spd, Ts, Fmax, 'f' , mass);
+    
+	% Eric: I rougly placed the target in the middle of the image to help 
+    % the guys out dring their initial development.
+    [ y, x ] = size( handles.backgroundImage );
+    P(:,1) = P(:,1) + x/2;
+    P(:,2) = P(:,2) + y/2;
+    
 elseif ( get(handles.radiobuttonBalistic,'Value') == 1 )
     P = genPath(pos, vel, spd, Ts, Fmax, 'b', mass);
 elseif ( get(handles.radiobuttonCircular,'Value') == 1 )
     P = genPath(pos, vel, spd, Ts, Fmax, 'c', mass);
+    
+    % Eric: I rougly placed the target in the middle of the image to help 
+    % the guys out dring their initial development.
+    [ y, x ] = size( handles.backgroundImage );
+    P(:,1) = P(:,1) + x/2;
+    P(:,2) = P(:,2) + y/2;
+    
 elseif ( get(handles.radiobuttonLinear,'Value') == 1 )
     P = genPath(pos, vel, spd, Ts, Fmax, 's', mass);
 elseif ( get(handles.radiobuttonHover,'Value') == 1 )
@@ -465,6 +541,31 @@ end
 
 axes( handles.axesTarget );
 imshow(cast(target_im,'uint8'));
+
+% Eric: I added the following code for generating the image frames and also
+% some of the handle structures for the guys.
+
+% Need to generate the image sets which simulate a "video".
+[ numFrames, numCoordinates ] = size(P);
+ImageStack = zeros( [size(handles.backgroundImage), numFrames] );
+
+for i = 1:numFrames
+    
+    ImageStack(:,:,i) = drawTarget( handles.backgroundImage, target_im, t_alpha, P(i,:) );
+  
+end
+
+% Copy over the final tracking file
+handles.trackingImage    = ImageStack;
+handles.targetLocation.x = P(:,1);
+handles.targetLocation.y = P(:,2);
+handles.targetInfo = target_im;
+% Instruct everyone that we've generated the background
+handles.targetMade = 1;
+
+% Display the first frame for the user
+axes( handles.axesTracking );
+imshow( handles.trackingImage(:,:,1), [] );
 
 % Update Handles
 guidata(hObject, handles);
@@ -571,7 +672,3 @@ set(handles.posText,'Enable','off')
 set(handles.massText,'Enable','off')
 set(handles.angleText,'Enable','off')
 set(handles.speedText,'Enable','off')
-
-
-
-

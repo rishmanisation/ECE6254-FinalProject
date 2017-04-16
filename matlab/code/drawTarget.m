@@ -22,17 +22,17 @@ else
     biy1 = max(1, y);
     biy2 = min(bY, y2);
     % These are the index values for the target matrix
-    tix1 = max(-x+2,1)
+    tix1 = max(-x+2,1);
     if(x2 > bX)
-        tix2 = tX-(x2-bX)
+        tix2 = tX-(x2-bX);
     else
-        tix2 = tX
+        tix2 = tX;
     end    
-    tiy1 = max(-y+2,1)
+    tiy1 = max(-y+2,1);
     if(y2 > bY)
-        tiy2 = tY-(y2-bY)
+        tiy2 = tY-(y2-bY);
     else
-        tiy2 = tY
+        tiy2 = tY;
     end
     % Calculate a full background size alpha channel, and a full 
     % size background with the image to be mixed with it
@@ -44,6 +44,13 @@ else
     % Add the full size image to the original background with the
     % appropriate areas blocked off
     Image = background.*full_alpha + full_target.*(1-full_alpha);
+    
+    % Eric: I did a simple addition of the target and the background just
+    % to overcome some of the alpha stuff which was giving me problems. We
+    % can change this to make it easier, but for now it gives them
+    % something to go on.
+    Image = background + full_target;
+    
 end
 
 return

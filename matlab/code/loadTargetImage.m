@@ -16,6 +16,14 @@ end
 scale_factor = D/max(Y,X);
 
 Image = imresize(Image, scale_factor);
-alpha = (Image == 255);
+
+% Eric, I  had to reduce the threshold for the alpha channel because the
+% background wasnt being removed.
+alpha = (Image >= 250);
+
+% I'm gonna change the polarity of the image to make things white-hot as
+% you would see from an infrared image.
+Image = max(max(Image)) - Image;
+
 Image = cast(Image, 'double');
 return
