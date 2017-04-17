@@ -44,6 +44,13 @@ else
     % Add the full size image to the original background with the
     % appropriate areas blocked off
     Image = background.*full_alpha + full_target.*(1-full_alpha);
+    
+    % Eric: I did a simple addition of the target and the background just
+    % to overcome some of the alpha stuff which was giving me problems. We
+    % can change this to make it easier, but for now it gives them
+    % something to go on.
+    Image = background + full_target;
+    
 end
 
 return
