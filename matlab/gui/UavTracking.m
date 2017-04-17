@@ -119,6 +119,9 @@ end
 axes( handles.axesBackgroundImage );
 imshow( handles.backgroundImage, [] );
 
+% Instruct everyone that we've generated the background
+handles.backgroundMade = 1;
+
 % Update Handles
 guidata(hObject, handles);
 
@@ -213,6 +216,9 @@ end
 % Update Figure
 axes( handles.axesBackgroundImage );
 imshow( handles.backgroundImage, [] );
+
+% Instruct everyone that we've generated the background
+handles.backgroundMade = 1;
 
 % Update Handles
 guidata(hObject, handles);
