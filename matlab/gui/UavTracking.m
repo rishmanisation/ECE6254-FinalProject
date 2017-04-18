@@ -372,24 +372,15 @@ else
         %
         % Finally, we will find the centroid of the target
         %
-        % centroid = centroidFunction( imageMLE );
+        % [centroid_x, centroid_y] = centroidFunction( imageMLE );
 
 
         %% Future Target Location Estimation
         % Rish: This is where you will add your kalman filtering code.
         % 1) Kalman Filter - Find estimated location on next frame
         % 2) Produce Error Graph - Show user how well we are doing
-        image = double(rgb2gray(original_image(:,:,:,t)));
-        image_prev = double(rgb2gray(original_image(:,:,:,t-1)));
-    
-        image_change = image - image_prev;
-        image_change(image_change < 0) = 0;
-    
-        [correlation_fact, correlation_mat] = correlation(image_prev,image);
-        image = ROI(image, 40, 40);
-        image(image < 140) = 0;
-        [centroid_x, centroid_y] = centroid(image);
-        Z = [centroid_x;centroid_y;0;0];    % Initial Location.
+
+        Z = [centroid_x;centroid_y; 0; 0];    % Updated Location
         
         % Kalman filter
         [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
@@ -398,42 +389,41 @@ else
         % to use extended Kalman.
         % [X,P] = ext_kalman_filter(X,P,Z,measurement_noise,process_noise,f,h);
         
-        location_estimate = [location_estimate X(1:2)];
-        location_actual = [location_actual Z(1:2)];
-        le = X(1:2);
-        la = Z(1:2);
-        diff = abs(le-la);
-        location_diff = [location_diff diff];            
-            
-        % Adding the crosshairs
-        imagesc(image);
-        axis off
-        colormap(gray);
-        hold on
-        plot(centroid_x,centroid_y,'-.*k');     % Actual Location
-        plot(X(1),X(2), 'o');                   % 
-        hold off
-        pause(0.1);
+        % Now we save the location estimates so that we can have a
+        % real-time plot of how our tracking algorithms are doing.
+        locationEstimate  = X(1:2);
+        locationActual    = [ handles.targetLocation.x(frameNumber); handles.targetLocation.y(frameNumber)];
+        diff              = abs(locationEstimate - locationActual);
+        location_diff     = [location_diff diff];     
+        
+        % Error Plot: We select the appropriate plot from the GUI to be
+        % what we will be displaying upon
+        axes( handles.axesTargetPerformance );
+        
+        hold on;
+        grid on;
+            plot( location_diff(1,:),  location_diff(2,:),  'r');
+        hold off;
 
-%         % Update location
-%         Z = [centroid_x;centroid_y;0;0];
-% 
-%         % Estimate the next location
-%         [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
-% 
-%         % Update the running estimations
-%         location_estimate = [location_estimate; X(1:2)];
-
-        % Display the Image with a crosshair on the estimate location.
+        % Display the Image with a crosshair on the estimate location. In
+        % the future, we can add more detailed crosshairs which look a bit
+        % better than a single dot on the image.
         % image = addCrosshairs( image );
 
-        % Display an image with the error between the estimate location and the
-        % actual location. This is outside the loop.
-        % plot( error (red), actual (black) );
-
-        % For Debugging pupose, I'm just displaying the image
+        % Display the image with the crosshairs overlayed to aid the user
+        % in identifying the estimated location.
         axes( handles.axesTracking );
         imshow( handles.trackingImage(:,:,frameNumber), [] );
+        
+        hold on
+            % Actual Location
+            plot( handles.targetLocation.x(frameNumber), ...
+                  handles.targetLocation.y(frameNumber), ...
+                  '-.*k');                          
+            
+            % Estimate Location
+            plot(X(1),X(2), 'o');                   
+        hold off
         
         % Update the images.
         drawnow;
@@ -441,11 +431,6 @@ else
     end
    
 end
-
-% Error plot
-hold on
-plot(location_diff(1,:),location_diff(2,:),'r');
-plot(location_actual(1,:),location_actual(2,:),'k');
 
 fprintf('Im done fool. \n');
 
@@ -555,8 +540,8 @@ end
 
 % Copy over the final tracking file
 handles.trackingImage    = ImageStack;
-handles.targetLocation.x = P(i,1);
-handles.targetLocation.y = P(i,2);
+handles.targetLocation.x = P(:,1);
+handles.targetLocation.y = P(:,2);
 
 % Instruct everyone that we've generated the background
 handles.targetMade = 1;
