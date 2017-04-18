@@ -285,8 +285,11 @@ else
 
     Z = [centroid_x;centroid_y;0;0];    % Initial Location.
     X = Z;                              % Set the Inital location to the current location.
+    
     location_estimate = [];
-
+    location_actual = [];
+    location_diff = [];
+    
     dt = 1;
     process_noise = 0.2;               % How fast the object is speeding/slowing (acceleration)
                                        % Increasing this variable improves
@@ -320,7 +323,11 @@ else
             dt^2/2
             dt
             dt]; 
-
+    
+    % These are the state transition functions for extended Kalman filter
+    f = @(x)[x(4);x(3);x(2);0.05*x(1)*(x(2)+x(3)+x(4))];  % nonlinear state equations
+    h = @(x)x(1);                               % measurement equation
+    
     % Hyeon: This is the location where you will initialize you data elements
     % for the MLE.
     imageMLE = zeros(size(128,128));
@@ -330,7 +337,8 @@ else
     set(handles.pushbuttonStopTrack, 'UserData', 0);
     
     [ x, y, numFrames ] = size( handles.trackingImage );
-
+    original_image = handles.trackingImage; % would this line make sense?
+    
     % This loop creates a "video" like representation
     for frameNumber = 1 : numFrames
 
@@ -371,21 +379,56 @@ else
         % Rish: This is where you will add your kalman filtering code.
         % 1) Kalman Filter - Find estimated location on next frame
         % 2) Produce Error Graph - Show user how well we are doing
-
-        % Update location
-        Z = [centroid_x;centroid_y;0;0];
-
-        % Estimate the next location
+        image = double(rgb2gray(original_image(:,:,:,t)));
+        image_prev = double(rgb2gray(original_image(:,:,:,t-1)));
+    
+        image_change = image - image_prev;
+        image_change(image_change < 0) = 0;
+    
+        [correlation_fact, correlation_mat] = correlation(image_prev,image);
+        image = ROI(image, 40, 40);
+        image(image < 140) = 0;
+        [centroid_x, centroid_y] = centroid(image);
+        Z = [centroid_x;centroid_y;0;0];    % Initial Location.
+        
+        % Kalman filter
         [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
+        
+        % Extended Kalman filter. Uncomment this and comment the above line
+        % to use extended Kalman.
+        % [X,P] = ext_kalman_filter(X,P,Z,measurement_noise,process_noise,f,h);
+        
+        location_estimate = [location_estimate X(1:2)];
+        location_actual = [location_actual Z(1:2)];
+        le = X(1:2);
+        la = Z(1:2);
+        diff = abs(le-la);
+        location_diff = [location_diff diff];            
+            
+        % Adding the crosshairs
+        imagesc(image);
+        axis off
+        colormap(gray);
+        hold on
+        plot(centroid_x,centroid_y,'-.*k');     % Actual Location
+        plot(X(1),X(2), 'o');                   % 
+        hold off
+        pause(0.1);
 
-        % Update the running estimations
-        location_estimate = [location_estimate; X(1:2)];
+%         % Update location
+%         Z = [centroid_x;centroid_y;0;0];
+% 
+%         % Estimate the next location
+%         [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
+% 
+%         % Update the running estimations
+%         location_estimate = [location_estimate; X(1:2)];
 
         % Display the Image with a crosshair on the estimate location.
         % image = addCrosshairs( image );
 
         % Display an image with the error between the estimate location and the
-        % actual location.
+        % actual location. This is outside the loop.
         % plot( error (red), actual (black) );
 
         % For Debugging pupose, I'm just displaying the image
@@ -396,8 +439,13 @@ else
         drawnow;
 
     end
-    
+   
 end
+
+% Error plot
+hold on
+plot(location_diff(1,:),location_diff(2,:),'r');
+plot(location_actual(1,:),location_actual(2,:),'k');
 
 fprintf('Im done fool. \n');
 
