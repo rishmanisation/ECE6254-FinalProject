@@ -278,20 +278,20 @@ else
 
     % When we have the proper handles structure setup, we can uncomment these
     % and remove the hard coded values.
-    % centroid_x = handles.targetLocation.x(1);
-    % centroid_y = handles.targetLocation.y(1);
-    centroid_x = 128;
-    centroid_y = 128;
+    centroid_x = handles.targetLocation.x(1);
+    centroid_y = handles.targetLocation.y(1);
 
     Z = [centroid_x;centroid_y;0;0];    % Initial Location.
     X = Z;                              % Set the Inital location to the current location.
     
-    location_estimate = [];
-    location_actual = [];
-    location_diff = [];
+    location_estimateX = [];
+    location_estimateY = [];
+    location_actualX   = [];
+    location_actualY   = [];
+    location_diff      = [];
     
-    dt = 1;
-    process_noise = 0.2;               % How fast the object is speeding/slowing (acceleration)
+    dt            = 1;
+    process_noise = 0.8;               % How fast the object is speeding/slowing (acceleration)
                                        % Increasing this variable improves
                                        % reaction to the object, but you
                                        % become more susceptable to noise.
@@ -330,18 +330,20 @@ else
     
     % Hyeon: This is the location where you will initialize you data elements
     % for the MLE.
-    imageMLE = zeros(size(128,128));
+    [ frameInfo.vlin, frameInfo.vpix, numFrames ] = size( handles.trackingImage );
+    targetInformation = handles.targetInfo;
+    targetLoc.x = handles.targetLocation.x(1);
+    targetLoc.y = handles.targetLocation.y(1);
 
 
     % Clear the intrrupt if it's already been pushed
     set(handles.pushbuttonStopTrack, 'UserData', 0);
     
-    [ x, y, numFrames ] = size( handles.trackingImage );
-    original_image = handles.trackingImage; % would this line make sense?
-    
     % This loop creates a "video" like representation
     for frameNumber = 1 : numFrames
-
+        
+        input_image = handles.trackingImage(:,:,frameNumber);
+       
         % Check to see if the user has clicked the 'Stop Tracking' button
         if get(handles.pushbuttonStopTrack, 'UserData') == 1
             % Clear the button
@@ -354,14 +356,28 @@ else
         % Hyeon: This is where you will be adding your MLE code.
         % 1) Acquire the target and border region data
         % 2) Apply your thresholding with the MLE
-
+        
         % It will look something like this...
         %[ topRegion, leftRegion, rightRegion, bottomRegion, targetRegion ] = ...
         %    MLE_AcquireRegions( finalImage, frameInfo, targetInfo, targetLocationInfo );
-        %
+        [ top, left, right, bottom, target, imageOverlay] = ...
+            MLE_AcquireRegions_HK( input_image, frameInfo, targetInformation, targetLoc);
+        
         % Now threshold the image
-        % imageMLE = ML();
-
+        [phat, image_thresh] = MLE_image( top, left, right, bottom, target);
+        % figure('Name','MLE Output');
+        % subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
+        % subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
+        % subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
+        % subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
+        
+        %I would need to do something with this image_tresh which has four
+        %things: probabilty comparison between the top region vs target,
+        %bottom region vs target, right vs target, and left vs target 
+        
+%         image_sum = image_thresh(:,:,1)+image_thresh(:,:,2)+image_thresh(:,:,3)+image_thresh(:,:,4);
+%         handles.trackingImage(:,:,frameNumber) = imageOverlay;
+        
         % With the image now binary, there will be some errors. These can
         % consitute erroneous pixels not in the target or pixels that were
         % supposed to be the target but arent. For now, we will apply the
@@ -369,11 +385,42 @@ else
         % 1) Dilation and Erosion - Fill holes
         % 2) Noise Spike Removal
         % 3) Image Blurring
-        %
+        
+        % Perform Morphological - Closing to remove holes between target
+        se = strel('square',5);
+        image_thresh = imdilate(image_thresh, se);
+        image_thresh = imerode(image_thresh,  se);
+        
+        % figure('Name','Closing Output');
+        % subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
+        % subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
+        % subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
+        % subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
+        
+        % The thresholded image is simply a binary one or zero indicating
+        % the probability that the pixel is part of the target. We will now
+        % apply a weighting to the original image pixels based on how many
+        % pixels were thresholded correctly.
+        image_sum = image_thresh(:,:,1) + ...
+                    image_thresh(:,:,2) + ...
+                    image_thresh(:,:,3) + ...
+                    image_thresh(:,:,4);
+                
+        image_centroid = target .* image_sum;
+        % figure('Name','Centroid Input');
+        % subplot(2,2,1); imshow( target,         [] ); title('Original Image');
+        % subplot(2,2,2); imshow( image_sum,      [] ); title('Summed Image');
+        % subplot(2,2,3); imshow( image_centroid, [] ); title('Centroid Image');
+        
         % Finally, we will find the centroid of the target
-        %
-        % [centroid_x, centroid_y] = centroidFunction( imageMLE );
-
+        [centroid_x, centroid_y] = centroid( image_centroid );
+        
+        % An offset must be added to the centroid locations because the
+        % centroid was found for only the target region. This is a smaller
+        % bounding box, so we must translate this into the original large
+        % image space.
+        centroid_x = centroid_x + handles.targetLocation.x(frameNumber);
+        centroid_y = centroid_y + handles.targetLocation.y(frameNumber);
 
         %% Future Target Location Estimation
         % Rish: This is where you will add your kalman filtering code.
@@ -391,10 +438,19 @@ else
         
         % Now we save the location estimates so that we can have a
         % real-time plot of how our tracking algorithms are doing.
+        location_estimateX = [ location_estimateX, X(1) ];
+        location_estimateY = [ location_estimateY, X(2) ];
+        location_actualX   = [ location_actualX,   handles.targetLocation.x(frameNumber) ];
+        location_actualY   = [ location_actualY,   handles.targetLocation.y(frameNumber) ];
+        
         locationEstimate  = X(1:2);
         locationActual    = [ handles.targetLocation.x(frameNumber); handles.targetLocation.y(frameNumber)];
         diff              = abs(locationEstimate - locationActual);
         location_diff     = [location_diff diff];     
+        
+        % These are simply handoffs to Hyeon's MLE function
+        targetLoc.x = floor( locationEstimate(1) );
+        targetLoc.y = floor( locationEstimate(2) );
         
         % Error Plot: We select the appropriate plot from the GUI to be
         % what we will be displaying upon
@@ -402,8 +458,16 @@ else
         
         hold on;
         grid on;
-            plot( location_diff(1,:),  location_diff(2,:),  'r');
+            plot( location_estimateX, 'b'   ,'DisplayName','Estimate(x)')
+            plot( location_estimateY, 'b--' ,'DisplayName','Estimate(y)')
+            plot( location_actualX,   'k'   ,'DisplayName','Actual(x)')
+            plot( location_actualY,   'k--' ,'DisplayName','Actual(y)')
+            plot( location_diff(1,:), 'r'   ,'DisplayName','Difference(x)')
+            plot( location_diff(2,:), 'r--' ,'DisplayName','Difference(y)')
+            % legend('show');
         hold off;
+        
+        drawnow;
 
         % Display the Image with a crosshair on the estimate location. In
         % the future, we can add more detailed crosshairs which look a bit
@@ -542,7 +606,7 @@ end
 handles.trackingImage    = ImageStack;
 handles.targetLocation.x = P(:,1);
 handles.targetLocation.y = P(:,2);
-
+handles.targetInfo = target_im;
 % Instruct everyone that we've generated the background
 handles.targetMade = 1;
 

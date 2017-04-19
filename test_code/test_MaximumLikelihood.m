@@ -94,7 +94,7 @@ for frameNumber = 1 : displayInfo.numFrames
     % modify this function to add specific movement patterns which reflect
     % that of an actual target. For now, just generate some random
     % patterns.
-    [ targetMovImage updatedLocations] = moveTarget( frameInfo, targetImage, targetLocationInfo );
+    [ targetMovImage, updatedLocations] = moveTarget( frameInfo, targetImage, targetLocationInfo );
 
     % Lowpass the location movements so it doesnt look so crazy
     % Lowpassing the target locations can be done to give the targets a
@@ -106,7 +106,7 @@ for frameNumber = 1 : displayInfo.numFrames
     % Adding all the frames correctly is a little more complicated than
     % what's shown. Nothing too bad, but for now just add away.
     finalImage = clutterImage + targetMovImage;
-
+%     figure,imshow(finalImage/255);
     %% Target Analysis
     % This would be the meat and potatoes. We'd be taking a stab at
     % understanding the underlying distributions for the target.
@@ -119,7 +119,7 @@ for frameNumber = 1 : displayInfo.numFrames
     % offset is attributed to the targets motion from the previous frame.
     % This offset tells the next frame where to place our location
     % estimates to perform "tracking".
-    MLE_AcquireRegions( finalImage, frameInfo, targetInfo, targetLocationInfo );
+    [ top, left, right, bottom, target,imageOverlay ]=MLE_AcquireRegions( finalImage, frameInfo, targetInfo, targetLocationInfo );
 
 
     %% Future Target Location Estimation
@@ -138,10 +138,10 @@ for frameNumber = 1 : displayInfo.numFrames
     plotlocation.y = [plotlocation.y, targetLocationInfo.y];
      
     % subplot(2,2,[1,3]);
-    imshow( finalImage, [] );
+    imshow( imageOverlay, [] );
     % imagesc( finalImage );
     title(sprintf('Frame: %d of %d', frameNumber, displayInfo.numFrames));
-    
+%     figure,imagesc(imageOverlay)
     %subplot(2,2,2);
     %plot( plotlocation.x );
     %title(sprintf('X Location & Performance'));
@@ -153,9 +153,3 @@ for frameNumber = 1 : displayInfo.numFrames
     drawnow;
 
 end
-
-
-
-
-
-
