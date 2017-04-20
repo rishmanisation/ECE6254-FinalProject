@@ -1,4 +1,4 @@
-function [ top, left, right, bottom, target,imageOverlay] = MLE_AcquireRegions_HK( image, frameInfo, targetInfo, targetLocationInfo)
+function [ top, left, right, bottom, target ] = MLE_AcquireRegions_HK( image, frameInfo, targetInfo, targetLocationInfo)
 %MLE_AcquireRegions Acquire MLE region statistics
 %   Detailed explanation goes here
 
@@ -12,15 +12,14 @@ function [ top, left, right, bottom, target,imageOverlay] = MLE_AcquireRegions_H
 
 % Use the assumption of the target size and increase it by a percentage to
 % ensure encapsulating the target.
-alpha = 1.00; % 20%
+alpha = 1.50; % 150 Percent
 [row,col]=size(targetInfo);
 targetX = floor(col * alpha);
 targetY = floor(row * alpha);
 
 % The buffer region is pre-set to an initial size (number of pixels between
 % target and border regions.
-bufferSize = 10;
-
+bufferSize = 5;
 
 
 % The border regions are size based on the target. There are the same
@@ -59,10 +58,10 @@ rightBorderY = targetY;
 
 % Find the start/end positions within the image
 
-targetXStart = targetLocationInfo.x;
-targetXEnd   = targetLocationInfo.x + targetX;
-targetYStart = targetLocationInfo.y;
-targetYEnd   = targetLocationInfo.y + targetY ;
+targetXStart = targetLocationInfo.x - floor(targetX/2);
+targetXEnd   = targetLocationInfo.x + floor(targetX/2);
+targetYStart = targetLocationInfo.y - floor(targetY/2);
+targetYEnd   = targetLocationInfo.y + floor(targetY/2);
 
 topBorderXStart = targetXStart - bufferSize ;
 topBorderXEnd   = targetXEnd   + bufferSize ;
@@ -84,7 +83,8 @@ rightBorderXEnd   = targetXEnd + bufferSize + rightBorderX ;
 rightBorderYStart = targetYStart - bufferSize ;
 rightBorderYEnd   = targetYEnd   + bufferSize ;
 
-% 
+% Hyeons attempting to identify invalid regions and what to do when they've
+% been encountered.
 if targetXStart > frameInfo.vlin
     targetXStart = framInfo.vlin;
 elseif targetXStart < 1
@@ -168,7 +168,7 @@ end
 
 
 % Plot these on the image for debugging
-debug = 1;
+debug = 0;
 if debug == 1
 
     % Overlay the input image or just look at the boxes with the other code
@@ -186,38 +186,38 @@ if debug == 1
     imageOverlay( targetYStart, targetXStart:targetXEnd) = tgt;
     imageOverlay( targetYEnd,   targetXStart:targetXEnd) = tgt;
     imageOverlay( targetYStart:targetYEnd, targetXStart) = tgt;
-    imageOverlay( targetYStart:targetYEnd, targetXEnd ) = tgt;
+    imageOverlay( targetYStart:targetYEnd, targetXEnd )  = tgt;
 
     % Top Border
-%     imageOverlay( topBorderYStart, topBorderXStart:topBorderXEnd ) = top;
-%     imageOverlay( topBorderYEnd,   topBorderXStart:topBorderXEnd) = top;
-%     imageOverlay( topBorderYStart:topBorderYEnd, topBorderXStart ) = top;
-%     imageOverlay( topBorderYStart:topBorderYEnd, topBorderXEnd ) = top;
-% 
-%     % Bottom Border
-%     imageOverlay( bottomBorderYStart, bottomBorderXStart:bottomBorderXEnd) = bottom;
-%     imageOverlay( bottomBorderYEnd,   bottomBorderXStart:bottomBorderXEnd) = bottom;
-%     imageOverlay( bottomBorderYStart:bottomBorderYEnd, bottomBorderXStart) = bottom;
-%     imageOverlay( bottomBorderYStart:bottomBorderYEnd, bottomBorderXEnd) = bottom;
-% 
-%     % Left Border
-%     imageOverlay( leftBorderYStart, leftBorderXStart:leftBorderXEnd) = left;
-%     imageOverlay( leftBorderYEnd,   leftBorderXStart:leftBorderXEnd) = left;
-%     imageOverlay( leftBorderYStart:leftBorderYEnd, leftBorderXStart) = left;
-%     imageOverlay( leftBorderYStart:leftBorderYEnd, leftBorderXEnd ) = left;
-% 
-%     % Right Border
-%     imageOverlay( rightBorderYStart, rightBorderXStart:rightBorderXEnd ) = right;
-%     imageOverlay( rightBorderYEnd,   rightBorderXStart:rightBorderXEnd ) = right;
-%     imageOverlay( rightBorderYStart:rightBorderYEnd, rightBorderXStart ) = right;
-%     imageOverlay( rightBorderYStart:rightBorderYEnd, rightBorderXEnd   ) = right;
+     imageOverlay( topBorderYStart, topBorderXStart:topBorderXEnd ) = top;
+     imageOverlay( topBorderYEnd,   topBorderXStart:topBorderXEnd) = top;
+     imageOverlay( topBorderYStart:topBorderYEnd, topBorderXStart ) = top;
+     imageOverlay( topBorderYStart:topBorderYEnd, topBorderXEnd ) = top;
+ 
+     % Bottom Border
+     imageOverlay( bottomBorderYStart, bottomBorderXStart:bottomBorderXEnd) = bottom;
+     imageOverlay( bottomBorderYEnd,   bottomBorderXStart:bottomBorderXEnd) = bottom;
+     imageOverlay( bottomBorderYStart:bottomBorderYEnd, bottomBorderXStart) = bottom;
+     imageOverlay( bottomBorderYStart:bottomBorderYEnd, bottomBorderXEnd) = bottom;
+ 
+     % Left Border
+     imageOverlay( leftBorderYStart, leftBorderXStart:leftBorderXEnd) = left;
+     imageOverlay( leftBorderYEnd,   leftBorderXStart:leftBorderXEnd) = left;
+     imageOverlay( leftBorderYStart:leftBorderYEnd, leftBorderXStart) = left;
+     imageOverlay( leftBorderYStart:leftBorderYEnd, leftBorderXEnd ) = left;
+ 
+     % Right Border
+     imageOverlay( rightBorderYStart, rightBorderXStart:rightBorderXEnd ) = right;
+     imageOverlay( rightBorderYEnd,   rightBorderXStart:rightBorderXEnd ) = right;
+     imageOverlay( rightBorderYStart:rightBorderYEnd, rightBorderXStart ) = right;
+     imageOverlay( rightBorderYStart:rightBorderYEnd, rightBorderXEnd   ) = right;
 
-    % figure;   
-%     imagesc(imageOverlay); colorbar;
+     figure;   
+     imagesc(imageOverlay); colorbar;
 end
 
 % Return the statistics for each region
-target  = image( targetYStart      : targetYEnd,       targetXStart  : targetXEnd   );
+target  = image( targetYStart      : targetYEnd,       targetXStart      : targetXEnd       );
 top     = image( topBorderYStart   : topBorderYEnd,    topBorderXStart   : topBorderXEnd    );
 bottom  = image( bottomBorderYStart: bottomBorderYEnd, bottomBorderXStart: bottomBorderXEnd );
 left    = image( leftBorderYStart  : leftBorderYEnd,   leftBorderXStart  : leftBorderXEnd   );

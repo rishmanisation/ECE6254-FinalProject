@@ -3,11 +3,22 @@ function [Image] = drawTarget(background, tgt, alpha, pos)
 full_alpha = ones(size(background));
 full_target = zeros(size(background));
 
-x = pos(1);
-y = pos(2);
+% Obtain the size of the target
 [tY, tX] = size(tgt);
-x2 = x + tX-1;
-y2 = y + tY-1;
+
+% Compute the start and end positions of the target. We center the target
+% upon the position so that the center of mass is coincident with the
+% expected location.
+remainder = mod(tX, 2);
+x  = pos(1) - floor(tX/2);
+x2 = pos(1) + floor(tX/2) - 1 + remainder;
+
+remainder = mod(tY, 2);
+y  = pos(2) - floor(tY/2);
+y2 = pos(2) + floor(tY/2) - 1 + remainder;
+
+% Find the backgound size so we can embedd the target into the correct
+% position.
 [bY, bX] = size(background);
 
 if((x2 < 1) || (x > bX) || (y2 < 1) && (y2 > bY))
@@ -34,13 +45,15 @@ else
     else
         tiy2 = tY;
     end
+    
     % Calculate a full background size alpha channel, and a full 
     % size background with the image to be mixed with it
     size(full_alpha(biy1:biy2,bix1:bix2))
     size(alpha(tiy1:tiy2,tix1:tix2))
     
-    full_alpha(biy1:biy2,bix1:bix2) = alpha(tiy1:tiy2,tix1:tix2); 
+    full_alpha(biy1:biy2,bix1:bix2)  = alpha(tiy1:tiy2,tix1:tix2); 
     full_target(biy1:biy2,bix1:bix2) = tgt(tiy1:tiy2,tix1:tix2); 
+    
     % Add the full size image to the original background with the
     % appropriate areas blocked off
     Image = background.*full_alpha + full_target.*(1-full_alpha);
