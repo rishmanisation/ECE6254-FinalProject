@@ -21,12 +21,12 @@ legend('show');
 
 % Other plotting
 set(gcf,'color','white');
-set(gca,'FontSize',fontSize,'FontWeight','bold');
+set(gca,'FontSize',fontSize,'FontWeight','bold','fontsize',12);
 set(gca,'xlim',xlimits,'ylim',ylimits);
 grid on;
-xlabel('Cycles/km','FontSize',fontSize,'FontWeight','Bold');
-ylabel('Power','FontSize',fontSize,'FontWeight','Bold');
-title('Radially averaged power spectrum','FontSize',fontSize,'FontWeight','Bold')
+xlabel('Cycles/km','FontSize',fontSize,'FontWeight','Bold','fontsize',12);
+ylabel('Power','FontSize',fontSize,'FontWeight','Bold','fontsize',12);
+title('Radially averaged power spectrum','FontSize',fontSize,'FontWeight','Bold','fontsize',12);
 
 
 return;

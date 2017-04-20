@@ -473,9 +473,13 @@ else
         % Error Plot: We select the appropriate plot from the GUI to be
         % what we will be displaying upon
         axes( handles.axesTargetPerformance );
+        cla;
         
         hold on;
         grid on;
+            title('Actual vs. Estimated Target Positions','fontweight','bold','fontsize',12);
+            xlabel('Pixel Location','fontweight','bold','fontsize',10);
+            ylabel('Frame Number',  'fontweight','bold','fontsize',10);
             plot( location_estimateX, 'b'   ,'DisplayName','Estimate(x)')
             plot( location_estimateY, 'b--' ,'DisplayName','Estimate(y)')
             plot( location_actualX,   'k'   ,'DisplayName','Actual(x)')
@@ -581,18 +585,29 @@ else
     %n/a
 end
 
+% Display the Target path
 axes( handles.axesTargetMotion );
-[Y,X] = size(handles.selectedImage);
-plot(P(:,1),-P(:,2));
-xlim([ 0, X ]);
-ylim([ -Y, 0 ]);
+cla;
 
+[Y,X] = size(handles.selectedImage);
+
+hold on;
+    title('Target Path',       'fontweight','bold','fontsize',12);
+    xlabel('Pixel Location X', 'fontweight','bold','fontsize',10);
+    ylabel('Pixel Location Y', 'fontweight','bold','fontsize',10);
+    plot(P(:,1),-P(:,2));
+    %xlim([ 0, X ]);
+    %ylim([ -Y, 0 ]);
+hold off;
+
+% These are the default images which are available to the user to select
+% from.
 UAVImage   = '..\images\UAV.jpg';
 UFOImage   = '..\images\UFO.jpg';
 HELImage   = '..\images\Helicopter.jpg';
 targetSize = str2num(get(handles.targetSizeText,'string'));
 
-
+% Determine which image is to be used based on the radio buttons
 if     ( get(handles.radiobuttonUFO,'Value') == 1 )
     [target_im, t_alpha] = loadTargetImage(UFOImage, targetSize);
 elseif ( get(handles.radiobuttonHelicopter,'Value') == 1 )
@@ -604,8 +619,14 @@ elseif ( get(handles.radiobuttonUAV,'Value') == 1 )
     error = 1;
 end
 
+% Load the image onto the GUI for the user to see.
 axes( handles.axesTarget );
-imshow(cast(target_im,'uint8'));
+cla;
+
+hold on;
+    xlabel('Selected Target', 'fontweight','bold','fontsize',12);
+    imshow(cast(target_im,'uint8'));
+hold off;
 
 % Eric: I added the following code for generating the image frames and also
 % some of the handle structures for the guys.

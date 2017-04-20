@@ -41,4 +41,10 @@ switch pType
         fprintf('Invalid type used! \n');
 end
 
+% We are operating on an image which only has discrete points. Convert the
+% decimal valued positions to integers. This will remove some granularity
+% but it is necessary.
+
+P = round( P );
+
 return

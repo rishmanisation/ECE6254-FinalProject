@@ -48,8 +48,8 @@ else
     
     % Calculate a full background size alpha channel, and a full 
     % size background with the image to be mixed with it
-    size(full_alpha(biy1:biy2,bix1:bix2))
-    size(alpha(tiy1:tiy2,tix1:tix2))
+    % size(full_alpha(biy1:biy2,bix1:bix2));
+    % size(alpha(tiy1:tiy2,tix1:tix2));
     
     full_alpha(biy1:biy2,bix1:bix2)  = alpha(tiy1:tiy2,tix1:tix2); 
     full_target(biy1:biy2,bix1:bix2) = tgt(tiy1:tiy2,tix1:tix2); 
@@ -61,8 +61,9 @@ else
     % Eric: I did a simple addition of the target and the background just
     % to overcome some of the alpha stuff which was giving me problems. We
     % can change this to make it easier, but for now it gives them
-    % something to go on.
-    Image = background + full_target;
+    % something to go on. The multiplication is just a gain factor I was
+    % using when playing around with the project.
+    Image = background + 2*full_target;
     
 end
 
