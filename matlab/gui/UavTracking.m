@@ -360,23 +360,28 @@ else
         % It will look something like this...
         %[ topRegion, leftRegion, rightRegion, bottomRegion, targetRegion ] = ...
         %    MLE_AcquireRegions( finalImage, frameInfo, targetInfo, targetLocationInfo );
-        [ top, left, right, bottom, target, imageOverlay] = ...
+        [ top, left, right, bottom, target ] = ...
             MLE_AcquireRegions_HK( input_image, frameInfo, targetInformation, targetLoc);
         
         % Now threshold the image
         [phat, image_thresh] = MLE_image( top, left, right, bottom, target);
-        % figure('Name','MLE Output');
-        % subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
-        % subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
-        % subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
-        % subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
+        
+        debug = 0;
+        if debug == 1
+            figure('Name','MLE Output');
+            subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
+            subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
+            subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
+            subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
+        end
         
         %I would need to do something with this image_tresh which has four
         %things: probabilty comparison between the top region vs target,
         %bottom region vs target, right vs target, and left vs target 
-        
-%         image_sum = image_thresh(:,:,1)+image_thresh(:,:,2)+image_thresh(:,:,3)+image_thresh(:,:,4);
-%         handles.trackingImage(:,:,frameNumber) = imageOverlay;
+
+        [ clusteredImage clusterID ] = clusteringKMeans( target );
+        clusteredImage( clusteredImage ~= clusterID ) = 0; 
+        clusteredImage( clusteredImage == clusterID ) = 1; 
         
         % With the image now binary, there will be some errors. These can
         % consitute erroneous pixels not in the target or pixels that were
@@ -387,15 +392,21 @@ else
         % 3) Image Blurring
         
         % Perform Morphological - Closing to remove holes between target
-        se = strel('square',5);
+        se = strel('square',3);
         image_thresh = imdilate(image_thresh, se);
         image_thresh = imerode(image_thresh,  se);
         
-        % figure('Name','Closing Output');
-        % subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
-        % subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
-        % subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
-        % subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
+        clusteredImage = imdilate(clusteredImage, se);
+        clusteredImage = imerode(clusteredImage,  se); 
+
+        debug = 0;
+        if debug == 1
+            figure('Name','Closing Output');
+            subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
+            subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
+            subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
+            subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
+        end
         
         % The thresholded image is simply a binary one or zero indicating
         % the probability that the pixel is part of the target. We will now
@@ -407,10 +418,17 @@ else
                     image_thresh(:,:,4);
                 
         image_centroid = target .* image_sum;
-        % figure('Name','Centroid Input');
-        % subplot(2,2,1); imshow( target,         [] ); title('Original Image');
-        % subplot(2,2,2); imshow( image_sum,      [] ); title('Summed Image');
-        % subplot(2,2,3); imshow( image_centroid, [] ); title('Centroid Image');
+        
+        imageCluster_centroid = target .* clusteredImage;
+        
+        debug = 0;
+        if debug == 1
+            figure('Name','Centroid Input');
+            subplot(2,2,1); imshow( target,                [] ); title('Original Image');
+            subplot(2,2,2); imshow( image_sum,             [] ); title('Summed Image');
+            subplot(2,2,3); imshow( image_centroid,        [] ); title('Centroid Image');
+            subplot(2,2,4); imshow( imageCluster_centroid, [] ); title('ClusteredImage');
+        end
         
         % Finally, we will find the centroid of the target
         [centroid_x, centroid_y] = centroid( image_centroid );
@@ -576,11 +594,11 @@ targetSize = str2num(get(handles.targetSizeText,'string'));
 
 
 if     ( get(handles.radiobuttonUFO,'Value') == 1 )
-    [target_im,t_alpha] = loadTargetImage(UFOImage, targetSize);
+    [target_im, t_alpha] = loadTargetImage(UFOImage, targetSize);
 elseif ( get(handles.radiobuttonHelicopter,'Value') == 1 )
-    [target_im,t_alpha] = loadTargetImage(HELImage, targetSize);
+    [target_im, t_alpha] = loadTargetImage(HELImage, targetSize);
 elseif ( get(handles.radiobuttonUAV,'Value') == 1 )
-    [target_im,t_alpha] = loadTargetImage(UAVImage, targetSize);
+    [target_im, t_alpha] = loadTargetImage(UAVImage, targetSize);
 elseif ( get(handles.radiobuttonUAV,'Value') == 1 )
     set(handles.textError, 'String', 'Synthetic Not Implemented Yet');
     error = 1;
@@ -606,7 +624,8 @@ end
 handles.trackingImage    = ImageStack;
 handles.targetLocation.x = P(:,1);
 handles.targetLocation.y = P(:,2);
-handles.targetInfo = target_im;
+handles.targetInfo       = target_im;
+
 % Instruct everyone that we've generated the background
 handles.targetMade = 1;
 
