@@ -484,7 +484,7 @@ else
         
         
         % Delta changes
-        changeDetect = 0.40; % 40 Percent change
+        changeDetect = 0.60; % 40 Percent change
         if( abs(meanAVGMLE - meanMLE) > changeDetect )
             detectMLEtrigger = 1;
         else
