@@ -21,23 +21,40 @@ function [P] = genPath(pos, vel, spd, Ts, Fmax, pType, mass)
 
 t = [0:(Fmax-1)]';
 
-fA = @(t) 9.8*mass*t;
-
 switch pType
     case 'b'
         fx = @(t,p0,v) p0 + t*v*(spd*Ts);
-        fy = @(t,p0,v) p0 + t*v*(spd*Ts) + mass*t.^2;
-        P = [fx(t, pos(1), vel(1)), fy(t, pos(2), vel(2)) - fA(t)];
+        fy = @(t,p0,v) p0 + t*v*(spd*Ts) - mass*t.^2;
+        P = [fx(t, pos(1), vel(1)), -fy(t, -pos(2), vel(2))];
     case 'c' 
         P = [pos(1) + mass*cos(2*pi*(spd*Ts)*t), pos(2) + mass*sin(2*pi*(spd*Ts)*t)];
     case 's'
         %Straight line path
-        fV = @(t,p0,v) p0 + t*v*(spd*Ts);
-        P = [fV(t, pos(1), vel(1)), fV(t, pos(2), vel(2))];
+        fV = @(t,p0,v) p0 + t*v*(spd*Ts) + mass*cosd(t*360*rand());
+        P = [fV(t, pos(1), vel(1)), -fV(t, -pos(2), vel(2))];
     case 'f' 
         P = [pos(1) + mass*cos(2*pi*(spd*Ts)*t), pos(2) + mass*sin(4*pi*(spd*Ts)*t)];
+    case 'h' 
+        P = zeros(Fmax,2);
+        p_last = [pos(1), pos(2)];
+        xbias = 0.5;
+        ybias = 0.5;
+        
+        for i = 1:Fmax
+            if (rand() > 0.85)
+                angle = 360*rand();
+                xbias = 0.1*mass*cosd(angle);
+                ybias = 0.1*mass*sind(angle);
+                
+            end
+
+            P(i,:) = [(p_last(1) + spd*(rand()-0.5 + xbias)),...
+                      (p_last(2) - spd*(rand()-0.5) + ybias)]; 
+
+            p_last = P(i,:);
+        end
     otherwise
-        P = zeros(Fmax,1);
+        P = zeros(Fmax,2);
         fprintf('Invalid type used! \n');
 end
 

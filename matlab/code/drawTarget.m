@@ -23,7 +23,7 @@ y2 = pos(2) + floor(tY/2) - 1 + remainder;
 
 if((x2 < 1) || (x > bX) || (y2 < 1) && (y2 > bY))
     % Bounds of the target are fully outside the background
-    Image = background;
+    Image = background + 2*full_alpha;
 else
     % At least some of the target is in the background space
     
@@ -48,15 +48,15 @@ else
     
     % Calculate a full background size alpha channel, and a full 
     % size background with the image to be mixed with it
-    % size(full_alpha(biy1:biy2,bix1:bix2));
-    % size(alpha(tiy1:tiy2,tix1:tix2));
-    
-    full_alpha(biy1:biy2,bix1:bix2)  = alpha(tiy1:tiy2,tix1:tix2); 
-    full_target(biy1:biy2,bix1:bix2) = tgt(tiy1:tiy2,tix1:tix2); 
+    % size(full_alpha(biy1:biy2,bix1:bix2))
+    % size(alpha(tiy1:tiy2,tix1:tix2))
+     
+     full_alpha(biy1:biy2,bix1:bix2)  = alpha(tiy1:tiy2,tix1:tix2); 
+     full_target(biy1:biy2,bix1:bix2) = tgt(tiy1:tiy2,tix1:tix2); 
     
     % Add the full size image to the original background with the
     % appropriate areas blocked off
-    Image = background.*full_alpha + full_target.*(1-full_alpha);
+    %Image = background.*full_alpha + full_target.*(1-full_alpha);
     
     % Eric: I did a simple addition of the target and the background just
     % to overcome some of the alpha stuff which was giving me problems. We

@@ -22,7 +22,7 @@ function varargout = UavTracking(varargin)
 
 % Edit the above text to modify the response to help UavTracking
 
-% Last Modified by GUIDE v2.5 16-Apr-2017 21:08:44
+% Last Modified by GUIDE v2.5 20-Apr-2017 22:34:37
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -66,10 +66,23 @@ set(handles.pushbuttonStopTrack, 'UserData', 0);
 
 % Update handles structure
 guidata(hObject, handles);
+uipanel1_SelectionChangeFcn(hObject, eventdata, handles);
+OpeningMessage(hObject, eventdata, handles)
+
+
 
 % UIWAIT makes UavTracking wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
+function out = OpeningMessage(hObject, eventdata, handles)
+uipanel1_SelectionChangeFcn(hObject, eventdata, handles);
+h = msgbox({'UAV Tracking program'...
+            'Select desired radio options'...
+            'Then click "Generate Scene"'...
+            'Start tracking will begin running the test'...
+            'If options are changed, Generate Scene Again'});
+
+return
 
 % --- Outputs from this function are returned to the command line.
 function varargout = UavTracking_OutputFcn(hObject, eventdata, handles) 
@@ -339,6 +352,7 @@ else
     % Clear the intrrupt if it's already been pushed
     set(handles.pushbuttonStopTrack, 'UserData', 0);
     
+    
     % This loop creates a "video" like representation
     for frameNumber = 1 : numFrames
         
@@ -514,8 +528,8 @@ else
         % Update the images.
         drawnow;
 
+
     end
-   
 end
 
 fprintf('Im done fool. \n');
@@ -533,7 +547,6 @@ function pushbuttonStopTrack_Callback(hObject, eventdata, handles)
 % in between the callbacks. We cannot use the handles because they are only
 % local copies from when they were called and will not notice the change.
 set(handles.pushbuttonStopTrack, 'UserData', 1);
-
 % Update Handles
 guidata(hObject, handles);
 
@@ -546,37 +559,29 @@ function genTargetButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+if ~isfield(handles, 'backgroundMade')
+    set(handles.textError, 'String', 'Background Not Generated');
+    error = 1;
+    return
+end
+
+
 pos = str2num(get(handles.posText,'string'));
 angle = str2double(get(handles.angleText, 'string'));
 vel = [cosd(angle) sind(angle)];
-spd = str2num(get(handles.speedText,'string'));
+spd = str2num(get(handles.speedText,'string'))/100 + 0.01;
 mass = str2num(get(handles.massText,'string'));
+Fmax = str2num(get(handles.numFrames,'string'));
 
-
-Ts = 1/1; %assuming 30fps?
-Fmax = 30; %max frame number taken from above
+Ts = 1; %assuming 30fps?
 
 % Determine which button was selected
 if     ( get(handles.radiobuttonFigure8,'Value') == 1 )
-    P = genPath(pos, vel, spd, Ts, Fmax, 'f' , mass);
-    
-	% Eric: I rougly placed the target in the middle of the image to help 
-    % the guys out dring their initial development.
-    [ y, x ] = size( handles.backgroundImage );
-    P(:,1) = P(:,1) + x/2;
-    P(:,2) = P(:,2) + y/2;
-    
+    P = genPath(pos, vel, spd, Ts, Fmax, 'f' , mass);   
 elseif ( get(handles.radiobuttonBalistic,'Value') == 1 )
     P = genPath(pos, vel, spd, Ts, Fmax, 'b', mass);
 elseif ( get(handles.radiobuttonCircular,'Value') == 1 )
-    P = genPath(pos, vel, spd, Ts, Fmax, 'c', mass);
-    
-    % Eric: I rougly placed the target in the middle of the image to help 
-    % the guys out dring their initial development.
-    [ y, x ] = size( handles.backgroundImage );
-    P(:,1) = P(:,1) + x/2;
-    P(:,2) = P(:,2) + y/2;
-    
+    P = genPath(pos, vel, spd, Ts, Fmax, 'c', mass);  
 elseif ( get(handles.radiobuttonLinear,'Value') == 1 )
     P = genPath(pos, vel, spd, Ts, Fmax, 's', mass);
 elseif ( get(handles.radiobuttonHover,'Value') == 1 )
@@ -584,6 +589,12 @@ elseif ( get(handles.radiobuttonHover,'Value') == 1 )
 else
     %n/a
 end
+% Rougly placed the target in the middle of the image
+
+[ y, x ] = size( handles.backgroundImage );
+P(:,1) = P(:,1) + x/2;
+P(:,2) = P(:,2) + y/2;
+
 
 % Display the Target path
 axes( handles.axesTargetMotion );
@@ -596,12 +607,12 @@ hold on;
     xlabel('Pixel Location X', 'fontweight','bold','fontsize',10);
     ylabel('Pixel Location Y', 'fontweight','bold','fontsize',10);
     plot(P(:,1),-P(:,2));
-    %xlim([ 0, X ]);
-    %ylim([ -Y, 0 ]);
+
 hold off;
 
 % These are the default images which are available to the user to select
 % from.
+SynthImage   = '..\images\gaussian.jpg';
 UAVImage   = '..\images\UAV.jpg';
 UFOImage   = '..\images\UFO.jpg';
 HELImage   = '..\images\Helicopter.jpg';
@@ -614,9 +625,8 @@ elseif ( get(handles.radiobuttonHelicopter,'Value') == 1 )
     [target_im, t_alpha] = loadTargetImage(HELImage, targetSize);
 elseif ( get(handles.radiobuttonUAV,'Value') == 1 )
     [target_im, t_alpha] = loadTargetImage(UAVImage, targetSize);
-elseif ( get(handles.radiobuttonUAV,'Value') == 1 )
-    set(handles.textError, 'String', 'Synthetic Not Implemented Yet');
-    error = 1;
+else
+    [target_im, t_alpha] = loadTargetImage(SynthImage, targetSize);   
 end
 
 % Load the image onto the GUI for the user to see.
@@ -634,10 +644,14 @@ hold off;
 % Need to generate the image sets which simulate a "video".
 [ numFrames, numCoordinates ] = size(P);
 ImageStack = zeros( [size(handles.backgroundImage), numFrames] );
+Noise = str2num(get(handles.noiseText,'string'));
+
 
 for i = 1:numFrames
     
-    ImageStack(:,:,i) = drawTarget( handles.backgroundImage, target_im, t_alpha, P(i,:) );
+    ImageStack(:,:,i) = drawTarget( handles.backgroundImage,...
+                        target_im, t_alpha, P(i,:) )...
+                        + Noise*rand(size(handles.backgroundImage)); 
   
 end
 
@@ -759,3 +773,82 @@ set(handles.posText,'Enable','off')
 set(handles.massText,'Enable','off')
 set(handles.angleText,'Enable','off')
 set(handles.speedText,'Enable','off')
+
+
+% --- Executes when selected object is changed in uipanel5.
+function uipanel5_SelectionChangeFcn(hObject, eventdata, handles)
+% hObject    handle to the selected object in uipanel5 
+% eventdata  structure with the following fields (see UIBUTTONGROUP)
+%	EventName: string 'SelectionChanged' (read only)
+%	OldValue: handle of the previously selected object or empty if none was selected
+%	NewValue: handle of the currently selected object
+% handles    structure with handles and user data (see GUIDATA)
+
+[Y,X] = size(handles.selectedImage);
+
+% Determine which button was selected
+if     ( get(handles.radiobuttonFigure8,'Value') == 1 )    
+    set(handles.posText,'string',num2str([0 0]));
+    set(handles.massText,'string',num2str(80));
+    set(handles.angleText,'string',num2str(0));
+    set(handles.speedText,'string',num2str(1));
+    set(handles.numFrames,'string',num2str(100));
+    
+elseif ( get(handles.radiobuttonBalistic,'Value') == 1 )
+    set(handles.posText,'string',num2str([-85 -85]));
+    set(handles.massText,'string',num2str(0.5));
+    set(handles.angleText,'string',num2str(45));
+    set(handles.speedText,'string',num2str(1000));
+    set(handles.numFrames,'string',num2str(30));
+    
+elseif ( get(handles.radiobuttonCircular,'Value') == 1 )
+    set(handles.posText,'string',num2str([0 0]));
+    set(handles.massText,'string',num2str(50));
+    set(handles.angleText,'string',num2str(0));
+    set(handles.speedText,'string',num2str(5));
+    set(handles.numFrames,'string',num2str(100));
+    
+elseif ( get(handles.radiobuttonLinear,'Value') == 1 )
+    set(handles.posText,'string',num2str([-85 -85]));
+    set(handles.massText,'string',num2str(1));
+    set(handles.angleText,'string',num2str(-45));
+    set(handles.speedText,'string',num2str(1000));
+    set(handles.numFrames,'string',num2str(30));
+    
+elseif ( get(handles.radiobuttonHover,'Value') == 1 )
+    set(handles.posText,'string',num2str([0 0]));
+    set(handles.massText,'string',num2str(15));
+    set(handles.angleText,'string',num2str(0));
+    set(handles.speedText,'string',num2str(500));
+    set(handles.numFrames,'string',num2str(100));
+    
+else
+    %n/a
+end
+
+
+
+
+
+
+function noiseText_Callback(hObject, eventdata, handles)
+% hObject    handle to noiseText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of noiseText as text
+%        str2double(get(hObject,'String')) returns contents of noiseText as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function noiseText_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to noiseText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
