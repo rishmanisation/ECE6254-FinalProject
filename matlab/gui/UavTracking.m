@@ -369,7 +369,7 @@ else
             % Break out of the loop
             break;
         end
-
+        
         %% Target Analysis
         % Hyeon: This is where you will be adding your MLE code.
         % 1) Acquire the target and border region data
@@ -378,191 +378,195 @@ else
         % It will look something like this...
         %[ topRegion, leftRegion, rightRegion, bottomRegion, targetRegion ] = ...
         %    MLE_AcquireRegions( finalImage, frameInfo, targetInfo, targetLocationInfo );
-        [ top, left, right, bottom, target ] = ...
-            MLE_AcquireRegions_HK( input_image, frameInfo, targetInformation, targetLoc);
-        
-        % Now threshold the image
-        [phat, image_thresh] = MLE_image( top, left, right, bottom, target);
-        
-        debug = 0;
-        if debug == 1
-            figure('Name','MLE Output');
-            subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
-            subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
-            subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
-            subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
-        end
-        
-        %I would need to do something with this image_tresh which has four
-        %things: probabilty comparison between the top region vs target,
-        %bottom region vs target, right vs target, and left vs target 
-
-        [ clusteredImage clusterID ] = clusteringKMeans( target );
-        clusteredImage( clusteredImage ~= clusterID ) = 0; 
-        clusteredImage( clusteredImage == clusterID ) = 1; 
-        
-        % With the image now binary, there will be some errors. These can
-        % consitute erroneous pixels not in the target or pixels that were
-        % supposed to be the target but arent. For now, we will apply the
-        % simple methods to help fix those:
-        % 1) Dilation and Erosion - Fill holes
-        % 2) Noise Spike Removal
-        % 3) Image Blurring
-        
-        % Perform Morphological - Closing to remove holes between target
-        se = strel('square',3);
-        image_thresh = imdilate(image_thresh, se);
-        image_thresh = imerode(image_thresh,  se);
-        
-        clusteredImage = imdilate(clusteredImage, se);
-        clusteredImage = imerode(clusteredImage,  se); 
-
-        debug = 0;
-        if debug == 1
-            figure('Name','Closing Output');
-            subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
-            subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
-            subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
-            subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
-        end
-        
-        % The thresholded image is simply a binary one or zero indicating
-        % the probability that the pixel is part of the target. We will now
-        % apply a weighting to the original image pixels based on how many
-        % pixels were thresholded correctly.
-        image_sum = image_thresh(:,:,1) + ...
-                    image_thresh(:,:,2) + ...
-                    image_thresh(:,:,3) + ...
-                    image_thresh(:,:,4);
-                
-        image_centroid = target .* image_sum;
-        
-        imageCluster_centroid = target .* clusteredImage;
-        
-        % Stop Function for debugging
-        if frameNumber >= 200 
-            cow = 1;
+        [ top, left, right, bottom, target,flag ] = ...
+            MLE_AcquireRegions_HKv2( input_image, frameInfo, targetInformation, targetLoc);
+        if flag == 1
+            axes(handles.axesTracking);
+            imshow(handles.trackingImage(:,:,frameNumber,[]));
+            drawnow;
         else
-            cow = 0;
-        end
-        
-        debug = 1;
-        if debug == 1 && cow == 1
-            figure('Name','Centroid Input');
-            subplot(2,2,1); imshow( target,                [] ); title('Original Image');
-            subplot(2,2,2); imshow( image_sum,             [] ); title('Summed Image');
-            subplot(2,2,3); imshow( image_centroid,        [] ); title('Centroid Image');
-            subplot(2,2,4); imshow( imageCluster_centroid, [] ); title('ClusteredImage');
-        end
-        
-        % This is where we start combining the results from the
-        % multiple algorithms to help make the design more robust.
-        meanMLE = mean( image_centroid(:) );
-        varMLE  = var(  image_centroid(:) );
-        
-        meanCLS = mean( imageCluster_centroid(:) );
-        varCluster  = var(  imageCluster_centroid(:) );
-        
-        disp( [ 'Frame Number = ', num2str(frameNumber) ]);
-        disp( ['MLE: mean =', num2str(meanMLE), ' var = ', num2str(varMLE) ] );
-        disp( ['CLS: mean =', num2str(meanCLS), ' var = ', num2str(varCluster) ] );
-        
-        % This is a running average of the means. During areas where we
-        % have large disparities between results, there have been large
-        % changes in the mean. We will use this as a measure of when one
-        % algorithm fails.
-        alpha = 0.30; % Rate of change
-        
-        if frameNumber == 1 
-            % Inital setting
-            meanAVGMLE = meanMLE;
-            meanAVGCLS = meanCLS;
-        else
-            meanAVGMLE = (1 - alpha)*meanAVGMLE - alpha*meanMLE;
-            meanAVGCLS = (1 - alpha)*meanAVGCLS - alpha*meanCLS;
-        end
-        
-        
-        % Delta changes
-        changeDetect = 0.40; % 40 Percent change
-        if( abs(meanAVGMLE - meanMLE) > changeDetect )
-            detectMLEtrigger = 1;
-        else
-            detectMLEtrigger = 0;
-        end
-        
-        if( abs(meanAVGCLS - meanCLS) > changeDetect )
-            detectCLStrigger = 1;
-        else
-            detectCLStrigger = 0;
-        end
-        
-        % Use on algorith over the other if the detection change has been
-        % triggered.
-        if detectCLStrigger == 1
-            [centroid_x, centroid_y] = centroid( image_centroid ); % MLE
-        else
-            [centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
-        end
-        
-        % Finally, we will find the centroid of the target
-        %[centroid_x, centroid_y] = centroid( image_centroid ); % MLE
-        
-        %[centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
-        
-        % An offset must be added to the centroid locations because the
-        % centroid was found for only the target region. This is a smaller
-        % bounding box, so we must translate this into the original large
-        % image space.
-        centroid_x = centroid_x + targetLoc.x;
-        centroid_y = centroid_y + targetLoc.y;
-        
-        % These lines of code are used for detecting the error between the
-        % tracking algorithms on a single frame basis. They only use the
-        % actual location and not the kalman filter outputs.
-        %centroid_x = centroid_x + handles.targetLocation.x(frameNumber);
-        %centroid_y = centroid_y + handles.targetLocation.y(frameNumber);
-        
-
-        %% Future Target Location Estimation
-        % Rish: This is where you will add your kalman filtering code.
-        % 1) Kalman Filter - Find estimated location on next frame
-        % 2) Produce Error Graph - Show user how well we are doing
-
-        Z = [centroid_x;centroid_y; 0; 0];    % Updated Location
-        
-        if( get(handles.kalmanFiltSTD,'Value') == 1 )
-            % Kalman filter
-            [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
-        else
-            % Extended Kalman filter. Uncomment this and comment the above line
-            % to use extended Kalman.
-            [X,P] = ext_kalman_filter(X,P,Z,measurement_noise,process_noise,f,h);
-        end
-        
-        % Now we save the location estimates so that we can have a
-        % real-time plot of how our tracking algorithms are doing.
-        location_estimateX = [ location_estimateX, X(1) ];
-        location_estimateY = [ location_estimateY, X(2) ];
-        location_actualX   = [ location_actualX,   handles.targetLocation.x(frameNumber) ];
-        location_actualY   = [ location_actualY,   handles.targetLocation.y(frameNumber) ];
-        
-        locationEstimate  = X(1:2);
-        locationActual    = [ handles.targetLocation.x(frameNumber); handles.targetLocation.y(frameNumber)];
-        diff              = abs(locationEstimate - locationActual);
-        location_diff     = [location_diff diff];     
-        
-        % These are simply handoffs to Hyeon's MLE function
-        targetLoc.x = floor( locationEstimate(1) );
-        targetLoc.y = floor( locationEstimate(2) );
-        
-        % Error Plot: We select the appropriate plot from the GUI to be
-        % what we will be displaying upon
-        axes( handles.axesTargetPerformance );
-        cla;
-        
-        hold on;
-        grid on;
+            % Now threshold the image
+            [phat, image_thresh] = MLE_image( top, left, right, bottom, target);
+            
+            debug = 0;
+            if debug == 1
+                figure('Name','MLE Output');
+                subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
+                subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
+                subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
+                subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
+            end
+            
+            %I would need to do something with this image_tresh which has four
+            %things: probabilty comparison between the top region vs target,
+            %bottom region vs target, right vs target, and left vs target
+            
+            [ clusteredImage clusterID ] = clusteringKMeans( target );
+            clusteredImage( clusteredImage ~= clusterID ) = 0;
+            clusteredImage( clusteredImage == clusterID ) = 1;
+            
+            % With the image now binary, there will be some errors. These can
+            % consitute erroneous pixels not in the target or pixels that were
+            % supposed to be the target but arent. For now, we will apply the
+            % simple methods to help fix those:
+            % 1) Dilation and Erosion - Fill holes
+            % 2) Noise Spike Removal
+            % 3) Image Blurring
+            
+            % Perform Morphological - Closing to remove holes between target
+            se = strel('square',3);
+            image_thresh = imdilate(image_thresh, se);
+            image_thresh = imerode(image_thresh,  se);
+            
+            clusteredImage = imdilate(clusteredImage, se);
+            clusteredImage = imerode(clusteredImage,  se);
+            
+            debug = 0;
+            if debug == 1
+                figure('Name','Closing Output');
+                subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
+                subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
+                subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
+                subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
+            end
+            
+            % The thresholded image is simply a binary one or zero indicating
+            % the probability that the pixel is part of the target. We will now
+            % apply a weighting to the original image pixels based on how many
+            % pixels were thresholded correctly.
+            image_sum = image_thresh(:,:,1) + ...
+                image_thresh(:,:,2) + ...
+                image_thresh(:,:,3) + ...
+                image_thresh(:,:,4);
+            
+            image_centroid = target .* image_sum;
+            
+            imageCluster_centroid = target .* clusteredImage;
+            
+            % Stop Function for debugging
+            if frameNumber >= 200
+                cow = 1;
+            else
+                cow = 0;
+            end
+            
+            debug = 1;
+            if debug == 1 && cow == 1
+                figure('Name','Centroid Input');
+                subplot(2,2,1); imshow( target,                [] ); title('Original Image');
+                subplot(2,2,2); imshow( image_sum,             [] ); title('Summed Image');
+                subplot(2,2,3); imshow( image_centroid,        [] ); title('Centroid Image');
+                subplot(2,2,4); imshow( imageCluster_centroid, [] ); title('ClusteredImage');
+            end
+            
+            % This is where we start combining the results from the
+            % multiple algorithms to help make the design more robust.
+            meanMLE = mean( image_centroid(:) );
+            varMLE  = var(  image_centroid(:) );
+            
+            meanCLS = mean( imageCluster_centroid(:) );
+            varCluster  = var(  imageCluster_centroid(:) );
+            
+            disp( [ 'Frame Number = ', num2str(frameNumber) ]);
+            disp( ['MLE: mean =', num2str(meanMLE), ' var = ', num2str(varMLE) ] );
+            disp( ['CLS: mean =', num2str(meanCLS), ' var = ', num2str(varCluster) ] );
+            
+            % This is a running average of the means. During areas where we
+            % have large disparities between results, there have been large
+            % changes in the mean. We will use this as a measure of when one
+            % algorithm fails.
+            alpha = 0.30; % Rate of change
+            
+            if frameNumber == 1
+                % Inital setting
+                meanAVGMLE = meanMLE;
+                meanAVGCLS = meanCLS;
+            else
+                meanAVGMLE = (1 - alpha)*meanAVGMLE - alpha*meanMLE;
+                meanAVGCLS = (1 - alpha)*meanAVGCLS - alpha*meanCLS;
+            end
+            
+            
+            % Delta changes
+            changeDetect = 0.60; % 40 Percent change
+            if( abs(meanAVGMLE - meanMLE) > changeDetect )
+                detectMLEtrigger = 1;
+            else
+                detectMLEtrigger = 0;
+            end
+            
+            if( abs(meanAVGCLS - meanCLS) > changeDetect )
+                detectCLStrigger = 1;
+            else
+                detectCLStrigger = 0;
+            end
+            
+            % Use on algorith over the other if the detection change has been
+            % triggered.
+            if detectCLStrigger == 1
+                [centroid_x, centroid_y] = centroid( image_centroid ); % MLE
+            else
+                [centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
+            end
+            
+            % Finally, we will find the centroid of the target
+            %[centroid_x, centroid_y] = centroid( image_centroid ); % MLE
+            
+            %[centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
+            
+            % An offset must be added to the centroid locations because the
+            % centroid was found for only the target region. This is a smaller
+            % bounding box, so we must translate this into the original large
+            % image space.
+            centroid_x = centroid_x + targetLoc.x;
+            centroid_y = centroid_y + targetLoc.y;
+            
+            % These lines of code are used for detecting the error between the
+            % tracking algorithms on a single frame basis. They only use the
+            % actual location and not the kalman filter outputs.
+            %centroid_x = centroid_x + handles.targetLocation.x(frameNumber);
+            %centroid_y = centroid_y + handles.targetLocation.y(frameNumber);
+            
+            
+            %% Future Target Location Estimation
+            % Rish: This is where you will add your kalman filtering code.
+            % 1) Kalman Filter - Find estimated location on next frame
+            % 2) Produce Error Graph - Show user how well we are doing
+            
+            Z = [centroid_x;centroid_y; 0; 0];    % Updated Location
+            
+            if( get(handles.kalmanFiltSTD,'Value') == 1 )
+                % Kalman filter
+                [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
+            else
+                % Extended Kalman filter. Uncomment this and comment the above line
+                % to use extended Kalman.
+                [X,P] = ext_kalman_filter(X,P,Z,measurement_noise,process_noise,f,h);
+            end
+            
+            % Now we save the location estimates so that we can have a
+            % real-time plot of how our tracking algorithms are doing.
+            location_estimateX = [ location_estimateX, X(1) ];
+            location_estimateY = [ location_estimateY, X(2) ];
+            location_actualX   = [ location_actualX,   handles.targetLocation.x(frameNumber) ];
+            location_actualY   = [ location_actualY,   handles.targetLocation.y(frameNumber) ];
+            
+            locationEstimate  = X(1:2);
+            locationActual    = [ handles.targetLocation.x(frameNumber); handles.targetLocation.y(frameNumber)];
+            diff              = abs(locationEstimate - locationActual);
+            location_diff     = [location_diff diff];
+            
+            % These are simply handoffs to Hyeon's MLE function
+            targetLoc.x = floor( locationEstimate(1) );
+            targetLoc.y = floor( locationEstimate(2) );
+            
+            % Error Plot: We select the appropriate plot from the GUI to be
+            % what we will be displaying upon
+            axes( handles.axesTargetPerformance );
+            cla;
+            
+            hold on;
+            grid on;
             title('Actual vs. Estimated Target Positions','fontweight','bold','fontsize',12);
             xlabel('Pixel Location','fontweight','bold','fontsize',10);
             ylabel('Frame Number',  'fontweight','bold','fontsize',10);
@@ -573,38 +577,38 @@ else
             plot( location_diff(1,:), 'r'   ,'DisplayName','Difference(x)')
             plot( location_diff(2,:), 'r--' ,'DisplayName','Difference(y)')
             % legend('show');
-        hold off;
-        
-        drawnow;
-
-        % Display the Image with a crosshair on the estimate location. In
-        % the future, we can add more detailed crosshairs which look a bit
-        % better than a single dot on the image.
-        image = addCrosshairs( handles.trackingImage(:,:,frameNumber), ...
-                               handles.targetLocation.x(frameNumber),  ...
-                               handles.targetLocation.y(frameNumber),  ...
-                               X(1), ...
-                               X(2) );
-
-        % Display the image with the crosshairs overlayed to aid the user
-        % in identifying the estimated location.
-        axes( handles.axesTracking );
-        imshow( image, [] );
-        
-        hold on
+            hold off;
+            
+            drawnow;
+            
+            % Display the Image with a crosshair on the estimate location. In
+            % the future, we can add more detailed crosshairs which look a bit
+            % better than a single dot on the image.
+            image = addCrosshairs( handles.trackingImage(:,:,frameNumber), ...
+                handles.targetLocation.x(frameNumber),  ...
+                handles.targetLocation.y(frameNumber),  ...
+                X(1), ...
+                X(2) );
+            
+            % Display the image with the crosshairs overlayed to aid the user
+            % in identifying the estimated location.
+            axes( handles.axesTracking );
+            imshow( image, [] );
+            
+            hold on
             % Actual Location
             plot( handles.targetLocation.x(frameNumber), ...
-                  handles.targetLocation.y(frameNumber), ...
-                  '-.*k');                          
+                handles.targetLocation.y(frameNumber), ...
+                '-.*k');
             
             % Estimate Location
-            plot(X(1),X(2), 'o');                   
-        hold off
-        
-        % Update the images.
-        drawnow;
-
-
+            plot(X(1),X(2), 'o');
+            hold off
+            
+            % Update the images.
+            drawnow;
+            
+        end
     end
 end
 
