@@ -22,7 +22,7 @@ function varargout = UavTracking(varargin)
 
 % Edit the above text to modify the response to help UavTracking
 
-% Last Modified by GUIDE v2.5 20-Apr-2017 22:34:37
+% Last Modified by GUIDE v2.5 21-Apr-2017 10:25:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -435,24 +435,40 @@ else
         
         imageCluster_centroid = target .* clusteredImage;
         
-        debug = 0;
-        if debug == 1
+        % Stop Function for debugging
+        if frameNumber >= 100 
+            cow = 0;
+        else
+            cow = 0;
+        end
+        
+        debug = 1;
+        if debug == 1 && cow == 1
             figure('Name','Centroid Input');
             subplot(2,2,1); imshow( target,                [] ); title('Original Image');
             subplot(2,2,2); imshow( image_sum,             [] ); title('Summed Image');
             subplot(2,2,3); imshow( image_centroid,        [] ); title('Centroid Image');
-            subplot(2,2,4); imshow( imageCluster_centroid, [] ); title('ClusteredImage');
+            subplot(2,2,4); imshow( clusteredImage, [] ); title('ClusteredImage');
         end
         
         % Finally, we will find the centroid of the target
-        [centroid_x, centroid_y] = centroid( image_centroid );
+        [centroid_x, centroid_y] = centroid( image_centroid ); % MLE
+        
+        [centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
         
         % An offset must be added to the centroid locations because the
         % centroid was found for only the target region. This is a smaller
         % bounding box, so we must translate this into the original large
         % image space.
-        centroid_x = centroid_x + handles.targetLocation.x(frameNumber);
-        centroid_y = centroid_y + handles.targetLocation.y(frameNumber);
+        centroid_x = centroid_x + targetLoc.x;
+        centroid_y = centroid_y + targetLoc.y;
+        
+        % These lines of code are used for detecting the error between the
+        % tracking algorithms on a single frame basis. They only use the
+        % actual location and not the kalman filter outputs.
+        %centroid_x = centroid_x + handles.targetLocation.x(frameNumber);
+        %centroid_y = centroid_y + handles.targetLocation.y(frameNumber);
+        
 
         %% Future Target Location Estimation
         % Rish: This is where you will add your kalman filtering code.
@@ -461,12 +477,14 @@ else
 
         Z = [centroid_x;centroid_y; 0; 0];    % Updated Location
         
-        % Kalman filter
-        [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
-        
-        % Extended Kalman filter. Uncomment this and comment the above line
-        % to use extended Kalman.
-        % [X,P] = ext_kalman_filter(X,P,Z,measurement_noise,process_noise,f,h);
+        if( get(handles.kalmanFiltSTD,'Value') == 1 )
+            % Kalman filter
+            [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
+        else
+            % Extended Kalman filter. Uncomment this and comment the above line
+            % to use extended Kalman.
+            [X,P] = ext_kalman_filter(X,P,Z,measurement_noise,process_noise,f,h);
+        end
         
         % Now we save the location estimates so that we can have a
         % real-time plot of how our tracking algorithms are doing.
@@ -508,12 +526,16 @@ else
         % Display the Image with a crosshair on the estimate location. In
         % the future, we can add more detailed crosshairs which look a bit
         % better than a single dot on the image.
-        % image = addCrosshairs( image );
+        image = addCrosshairs( handles.trackingImage(:,:,frameNumber), ...
+                               handles.targetLocation.x(frameNumber),  ...
+                               handles.targetLocation.y(frameNumber),  ...
+                               X(1), ...
+                               X(2) );
 
         % Display the image with the crosshairs overlayed to aid the user
         % in identifying the estimated location.
         axes( handles.axesTracking );
-        imshow( handles.trackingImage(:,:,frameNumber), [] );
+        imshow( image, [] );
         
         hold on
             % Actual Location
@@ -851,4 +873,4 @@ function noiseText_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
+    
