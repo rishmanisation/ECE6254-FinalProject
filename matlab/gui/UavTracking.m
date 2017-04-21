@@ -347,6 +347,10 @@ else
     targetInformation = handles.targetInfo;
     targetLoc.x = handles.targetLocation.x(1);
     targetLoc.y = handles.targetLocation.y(1);
+    
+    % Error Triggers
+    meanAVGMLE = 0;
+    meanAVGCLS = 0;
 
 
     % Clear the intrrupt if it's already been pushed
@@ -436,8 +440,8 @@ else
         imageCluster_centroid = target .* clusteredImage;
         
         % Stop Function for debugging
-        if frameNumber >= 100 
-            cow = 0;
+        if frameNumber >= 200 
+            cow = 1;
         else
             cow = 0;
         end
@@ -448,13 +452,63 @@ else
             subplot(2,2,1); imshow( target,                [] ); title('Original Image');
             subplot(2,2,2); imshow( image_sum,             [] ); title('Summed Image');
             subplot(2,2,3); imshow( image_centroid,        [] ); title('Centroid Image');
-            subplot(2,2,4); imshow( clusteredImage, [] ); title('ClusteredImage');
+            subplot(2,2,4); imshow( imageCluster_centroid, [] ); title('ClusteredImage');
+        end
+        
+        % This is where we start combining the results from the
+        % multiple algorithms to help make the design more robust.
+        meanMLE = mean( image_centroid(:) );
+        varMLE  = var(  image_centroid(:) );
+        
+        meanCLS = mean( imageCluster_centroid(:) );
+        varCluster  = var(  imageCluster_centroid(:) );
+        
+        disp( [ 'Frame Number = ', num2str(frameNumber) ]);
+        disp( ['MLE: mean =', num2str(meanMLE), ' var = ', num2str(varMLE) ] );
+        disp( ['CLS: mean =', num2str(meanCLS), ' var = ', num2str(varCluster) ] );
+        
+        % This is a running average of the means. During areas where we
+        % have large disparities between results, there have been large
+        % changes in the mean. We will use this as a measure of when one
+        % algorithm fails.
+        alpha = 0.30; % Rate of change
+        
+        if frameNumber == 1 
+            % Inital setting
+            meanAVGMLE = meanMLE;
+            meanAVGCLS = meanCLS;
+        else
+            meanAVGMLE = (1 - alpha)*meanAVGMLE - alpha*meanMLE;
+            meanAVGCLS = (1 - alpha)*meanAVGCLS - alpha*meanCLS;
+        end
+        
+        
+        % Delta changes
+        changeDetect = 0.40; % 40 Percent change
+        if( abs(meanAVGMLE - meanMLE) > changeDetect )
+            detectMLEtrigger = 1;
+        else
+            detectMLEtrigger = 0;
+        end
+        
+        if( abs(meanAVGCLS - meanCLS) > changeDetect )
+            detectCLStrigger = 1;
+        else
+            detectCLStrigger = 0;
+        end
+        
+        % Use on algorith over the other if the detection change has been
+        % triggered.
+        if detectCLStrigger == 1
+            [centroid_x, centroid_y] = centroid( image_centroid ); % MLE
+        else
+            [centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
         end
         
         % Finally, we will find the centroid of the target
-        [centroid_x, centroid_y] = centroid( image_centroid ); % MLE
+        %[centroid_x, centroid_y] = centroid( image_centroid ); % MLE
         
-        [centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
+        %[centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
         
         % An offset must be added to the centroid locations because the
         % centroid was found for only the target region. This is a smaller
