@@ -22,7 +22,7 @@ function varargout = UavTracking(varargin)
 
 % Edit the above text to modify the response to help UavTracking
 
-% Last Modified by GUIDE v2.5 21-Apr-2017 10:25:49
+% Last Modified by GUIDE v2.5 23-Apr-2017 20:13:22
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -60,6 +60,7 @@ addpath( strcat( fileparts(pwd), '\gui') );
 addpath( strcat( fileparts(pwd), '\code'  ) );
 addpath( strcat( fileparts(pwd), '\images') );
 addpath( strcat( fileparts(pwd), '\exampleKalman') );
+addpath( strcat( fileparts(pwd), '\readme') );
 
 handles.generateSynthetic = 0;
 set(handles.pushbuttonStopTrack, 'UserData', 0);
@@ -893,35 +894,35 @@ if     ( get(handles.radiobuttonFigure8,'Value') == 1 )
     set(handles.posText,'string',num2str([0 0]));
     set(handles.massText,'string',num2str(80));
     set(handles.angleText,'string',num2str(0));
-    set(handles.speedText,'string',num2str(1));
+    set(handles.speedText,'string',num2str(0.0000001));
     set(handles.numFrames,'string',num2str(100));
     
 elseif ( get(handles.radiobuttonBalistic,'Value') == 1 )
     set(handles.posText,'string',num2str([-85 -85]));
     set(handles.massText,'string',num2str(0.5));
     set(handles.angleText,'string',num2str(45));
-    set(handles.speedText,'string',num2str(1000));
+    set(handles.speedText,'string',num2str(500));
     set(handles.numFrames,'string',num2str(30));
     
 elseif ( get(handles.radiobuttonCircular,'Value') == 1 )
     set(handles.posText,'string',num2str([0 0]));
     set(handles.massText,'string',num2str(50));
     set(handles.angleText,'string',num2str(0));
-    set(handles.speedText,'string',num2str(5));
+    set(handles.speedText,'string',num2str(0.5));
     set(handles.numFrames,'string',num2str(100));
     
 elseif ( get(handles.radiobuttonLinear,'Value') == 1 )
     set(handles.posText,'string',num2str([-85 -85]));
     set(handles.massText,'string',num2str(1));
     set(handles.angleText,'string',num2str(-45));
-    set(handles.speedText,'string',num2str(1000));
+    set(handles.speedText,'string',num2str(500));
     set(handles.numFrames,'string',num2str(30));
     
 elseif ( get(handles.radiobuttonHover,'Value') == 1 )
     set(handles.posText,'string',num2str([0 0]));
     set(handles.massText,'string',num2str(15));
     set(handles.angleText,'string',num2str(0));
-    set(handles.speedText,'string',num2str(500));
+    set(handles.speedText,'string',num2str(100));
     set(handles.numFrames,'string',num2str(100));
     
 else
@@ -954,3 +955,29 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
     
+
+
+% --- Executes on button press in pushbuttonReadme.
+function pushbuttonReadme_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbuttonReadme (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% References:
+% http://stackoverflow.com/questions/7910287/what-is-the-best-way-to-display-a-large-text-file-in-matlab-guide
+% https://www.mathworks.com/matlabcentral/fileexchange/14317-findjobj-find-java-handles-of-matlab-graphic-objects
+
+path = strcat( fileparts(pwd), '\readme');
+
+fid = fopen( strcat(path, '\README.md') );
+str = textscan(fid, '%s', 'Delimiter','\n'); str = str{1};
+fclose(fid);
+
+%# GUI with multi-line editbox
+hFig = figure('Menubar','none', 'Toolbar','none');
+hPan = uipanel(hFig, 'Title','README.md', ...
+    'Units','normalized', 'Position',[0.05 0.05 0.9 0.9]);
+hEdit = uicontrol(hPan, 'Style','edit', 'FontSize',9, ...
+    'Min',0, 'Max',2, 'HorizontalAlignment','left', ...
+    'Units','normalized', 'Position',[0 0 1 1], ...
+    'String',str);
