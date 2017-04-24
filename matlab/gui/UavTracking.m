@@ -351,7 +351,10 @@ else
     % Error Triggers
     meanAVGMLE = 0;
     meanAVGCLS = 0;
-
+    detectCLStrigger = 0;
+    detectMLEtrigger = 0;
+    meanAVGMLEsaved = 0;
+    meanAVGCLSsaved = 0;
 
     % Clear the intrrupt if it's already been pushed
     set(handles.pushbuttonStopTrack, 'UserData', 0);
@@ -437,17 +440,17 @@ else
                 
         image_centroid = target .* image_sum;
         
-        imageCluster_centroid = target .* clusteredImage;
+        imageCluster_centroid = target .* clusteredImage;%% .* (gausswin(29)*gausswin(75)');
         
         % Stop Function for debugging
-        if frameNumber >= 200 
+        if frameNumber >= 10000 
             cow = 1;
         else
             cow = 0;
         end
         
         debug = 1;
-        if debug == 1 && cow == 1
+        if debug == 1 && cow == 1 %% || detectCLStrigger == 1
             figure('Name','Centroid Input');
             subplot(2,2,1); imshow( target,                [] ); title('Original Image');
             subplot(2,2,2); imshow( image_sum,             [] ); title('Summed Image');
@@ -471,33 +474,51 @@ else
         % have large disparities between results, there have been large
         % changes in the mean. We will use this as a measure of when one
         % algorithm fails.
-        alpha = 0.30; % Rate of change
+        alpha = 0.20; % Rate of change
         
         if frameNumber == 1 
             % Inital setting
             meanAVGMLE = meanMLE;
             meanAVGCLS = meanCLS;
         else
-            meanAVGMLE = (1 - alpha)*meanAVGMLE - alpha*meanMLE;
-            meanAVGCLS = (1 - alpha)*meanAVGCLS - alpha*meanCLS;
+            meanAVGMLE = (1 - alpha)*meanAVGMLE + alpha*meanMLE;
+            meanAVGCLS = (1 - alpha)*meanAVGCLS + alpha*meanCLS;
         end
         
+        % Detect delta changes between target means from previous frames.
+        % This is a means of determining if an algorithm has failed and is
+        % unable to recover. An alternative algorithm will be used in it's
+        % place as a meansure of fixing things. When an algo failes, its
+        % mean value is stored and used as an indicator for when the algo
+        % has returned to a working state.
+        changeDetect = 0.20; % Percent change
         
-        % Delta changes
-        changeDetect = 0.60; % 40 Percent change
-        if( abs(meanAVGMLE - meanMLE) > changeDetect )
+        % Replace comparison variable to stored mean value when the algo
+        % failed.
+        if detectMLEtrigger == 1
+            meanAVGMLE = meanAVGMLEsaved;
+        end
+        if detectCLStrigger == 1
+            meanAVGCLS   = meanAVGCLSsaved;
+            changeDetect = 0.05;
+        end
+        
+        % Determine if the algo has failed or not.
+        if( abs(meanAVGMLE - meanMLE)/meanAVGMLE > changeDetect )
             detectMLEtrigger = 1;
+            meanAVGMLEsaved = meanAVGMLE;
         else
             detectMLEtrigger = 0;
         end
         
-        if( abs(meanAVGCLS - meanCLS) > changeDetect )
+        if( abs(meanAVGCLS - meanCLS)/meanAVGCLS > changeDetect )
             detectCLStrigger = 1;
+            meanAVGCLSsaved = meanAVGCLS;
         else
             detectCLStrigger = 0;
         end
         
-        % Use on algorith over the other if the detection change has been
+        % Use one algorithm over the other if the detection change has been
         % triggered.
         if detectCLStrigger == 1
             [centroid_x, centroid_y] = centroid( image_centroid ); % MLE
