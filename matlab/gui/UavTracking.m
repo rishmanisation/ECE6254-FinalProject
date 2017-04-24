@@ -67,7 +67,7 @@ set(handles.pushbuttonStopTrack, 'UserData', 0);
 % Update handles structure
 guidata(hObject, handles);
 uipanel1_SelectionChangeFcn(hObject, eventdata, handles);
-OpeningMessage(hObject, eventdata, handles)
+% OpeningMessage(hObject, eventdata, handles)
 
 
 
@@ -381,193 +381,17 @@ else
         % It will look something like this...
         %[ topRegion, leftRegion, rightRegion, bottomRegion, targetRegion ] = ...
         %    MLE_AcquireRegions( finalImage, frameInfo, targetInfo, targetLocationInfo );
-<<<<<<< HEAD
         [ top, left, right, bottom, target,flag ] = ...
             MLE_AcquireRegions_HKv2( input_image, frameInfo, targetInformation, targetLoc);
+        
         if flag == 1
             axes(handles.axesTracking);
             imshow(handles.trackingImage(:,:,frameNumber,[]));
             drawnow;
-=======
-        [ top, left, right, bottom, target ] = ...
-            MLE_AcquireRegions_HK( input_image, frameInfo, targetInformation, targetLoc);
-        
-        % Now threshold the image
-        [phat, image_thresh] = MLE_image( top, left, right, bottom, target);
-        
-        debug = 0;
-        if debug == 1
-            figure('Name','MLE Output');
-            subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
-            subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
-            subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
-            subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
-        end
-        
-        %I would need to do something with this image_tresh which has four
-        %things: probabilty comparison between the top region vs target,
-        %bottom region vs target, right vs target, and left vs target 
-
-        [ clusteredImage clusterID ] = clusteringKMeans( target );
-        clusteredImage( clusteredImage ~= clusterID ) = 0; 
-        clusteredImage( clusteredImage == clusterID ) = 1; 
-        
-        % With the image now binary, there will be some errors. These can
-        % consitute erroneous pixels not in the target or pixels that were
-        % supposed to be the target but arent. For now, we will apply the
-        % simple methods to help fix those:
-        % 1) Dilation and Erosion - Fill holes
-        % 2) Noise Spike Removal
-        % 3) Image Blurring
-        
-        % Perform Morphological - Closing to remove holes between target
-        se = strel('square',3);
-        image_thresh = imdilate(image_thresh, se);
-        image_thresh = imerode(image_thresh,  se);
-        
-        clusteredImage = imdilate(clusteredImage, se);
-        clusteredImage = imerode(clusteredImage,  se); 
-
-        debug = 0;
-        if debug == 1
-            figure('Name','Closing Output');
-            subplot(2,2,1); imshow( image_thresh(:,:,1), [] ); title('Top');
-            subplot(2,2,2); imshow( image_thresh(:,:,2), [] ); title('Bottom');
-            subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
-            subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
-        end
-        
-        % The thresholded image is simply a binary one or zero indicating
-        % the probability that the pixel is part of the target. We will now
-        % apply a weighting to the original image pixels based on how many
-        % pixels were thresholded correctly.
-        image_sum = image_thresh(:,:,1) + ...
-                    image_thresh(:,:,2) + ...
-                    image_thresh(:,:,3) + ...
-                    image_thresh(:,:,4);
-                
-        image_centroid = target .* image_sum;
-        
-        imageCluster_centroid = target .* clusteredImage;%% .* (gausswin(29)*gausswin(75)');
-        
-        % Stop Function for debugging
-        if frameNumber >= 10000 
-            cow = 1;
-        else
-            cow = 0;
-        end
-        
-        debug = 1;
-        if debug == 1 && cow == 1 %% || detectCLStrigger == 1
-            figure('Name','Centroid Input');
-            subplot(2,2,1); imshow( target,                [] ); title('Original Image');
-            subplot(2,2,2); imshow( image_sum,             [] ); title('Summed Image');
-            subplot(2,2,3); imshow( image_centroid,        [] ); title('Centroid Image');
-            subplot(2,2,4); imshow( imageCluster_centroid, [] ); title('ClusteredImage');
-        end
-        
-        % This is where we start combining the results from the
-        % multiple algorithms to help make the design more robust.
-        meanMLE = mean( image_centroid(:) );
-        varMLE  = var(  image_centroid(:) );
-        
-        meanCLS = mean( imageCluster_centroid(:) );
-        varCluster  = var(  imageCluster_centroid(:) );
-        
-        disp( [ 'Frame Number = ', num2str(frameNumber) ]);
-        disp( ['MLE: mean =', num2str(meanMLE), ' var = ', num2str(varMLE) ] );
-        disp( ['CLS: mean =', num2str(meanCLS), ' var = ', num2str(varCluster) ] );
-        
-        % This is a running average of the means. During areas where we
-        % have large disparities between results, there have been large
-        % changes in the mean. We will use this as a measure of when one
-        % algorithm fails.
-        alpha = 0.20; % Rate of change
-        
-        if frameNumber == 1 
-            % Inital setting
-            meanAVGMLE = meanMLE;
-            meanAVGCLS = meanCLS;
-        else
-            meanAVGMLE = (1 - alpha)*meanAVGMLE + alpha*meanMLE;
-            meanAVGCLS = (1 - alpha)*meanAVGCLS + alpha*meanCLS;
-        end
-        
-        % Detect delta changes between target means from previous frames.
-        % This is a means of determining if an algorithm has failed and is
-        % unable to recover. An alternative algorithm will be used in it's
-        % place as a meansure of fixing things. When an algo failes, its
-        % mean value is stored and used as an indicator for when the algo
-        % has returned to a working state.
-        changeDetect = 0.20; % Percent change
-        
-        % Replace comparison variable to stored mean value when the algo
-        % failed.
-        if detectMLEtrigger == 1
-            meanAVGMLE = meanAVGMLEsaved;
-        end
-        if detectCLStrigger == 1
-            meanAVGCLS   = meanAVGCLSsaved;
-            changeDetect = 0.05;
-        end
-        
-        % Determine if the algo has failed or not.
-        if( abs(meanAVGMLE - meanMLE)/meanAVGMLE > changeDetect )
-            detectMLEtrigger = 1;
-            meanAVGMLEsaved = meanAVGMLE;
-        else
-            detectMLEtrigger = 0;
-        end
-        
-        if( abs(meanAVGCLS - meanCLS)/meanAVGCLS > changeDetect )
-            detectCLStrigger = 1;
-            meanAVGCLSsaved = meanAVGCLS;
-        else
-            detectCLStrigger = 0;
-        end
-        
-        % Use one algorithm over the other if the detection change has been
-        % triggered.
-        if detectCLStrigger == 1
-            [centroid_x, centroid_y] = centroid( image_centroid ); % MLE
-        else
-            [centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
-        end
-        
-        % Finally, we will find the centroid of the target
-        %[centroid_x, centroid_y] = centroid( image_centroid ); % MLE
-        
-        %[centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
-        
-        % An offset must be added to the centroid locations because the
-        % centroid was found for only the target region. This is a smaller
-        % bounding box, so we must translate this into the original large
-        % image space.
-        centroid_x = centroid_x + targetLoc.x;
-        centroid_y = centroid_y + targetLoc.y;
-        
-        % These lines of code are used for detecting the error between the
-        % tracking algorithms on a single frame basis. They only use the
-        % actual location and not the kalman filter outputs.
-        %centroid_x = centroid_x + handles.targetLocation.x(frameNumber);
-        %centroid_y = centroid_y + handles.targetLocation.y(frameNumber);
-        
-
-        %% Future Target Location Estimation
-        % Rish: This is where you will add your kalman filtering code.
-        % 1) Kalman Filter - Find estimated location on next frame
-        % 2) Produce Error Graph - Show user how well we are doing
-
-        Z = [centroid_x;centroid_y; 0; 0];    % Updated Location
-        
-        if( get(handles.kalmanFiltSTD,'Value') == 1 )
-            % Kalman filter
-            [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
->>>>>>> 7c949a836119f57efa22665211de70b3f5d7b5e5
         else
             % Now threshold the image
             [phat, image_thresh] = MLE_image( top, left, right, bottom, target);
-            
+
             debug = 0;
             if debug == 1
                 figure('Name','MLE Output');
@@ -576,15 +400,15 @@ else
                 subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
                 subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
             end
-            
+
             %I would need to do something with this image_tresh which has four
             %things: probabilty comparison between the top region vs target,
-            %bottom region vs target, right vs target, and left vs target
-            
+            %bottom region vs target, right vs target, and left vs target 
+
             [ clusteredImage clusterID ] = clusteringKMeans( target );
-            clusteredImage( clusteredImage ~= clusterID ) = 0;
-            clusteredImage( clusteredImage == clusterID ) = 1;
-            
+            clusteredImage( clusteredImage ~= clusterID ) = 0; 
+            clusteredImage( clusteredImage == clusterID ) = 1; 
+
             % With the image now binary, there will be some errors. These can
             % consitute erroneous pixels not in the target or pixels that were
             % supposed to be the target but arent. For now, we will apply the
@@ -592,15 +416,15 @@ else
             % 1) Dilation and Erosion - Fill holes
             % 2) Noise Spike Removal
             % 3) Image Blurring
-            
+
             % Perform Morphological - Closing to remove holes between target
             se = strel('square',3);
             image_thresh = imdilate(image_thresh, se);
             image_thresh = imerode(image_thresh,  se);
-            
+
             clusteredImage = imdilate(clusteredImage, se);
-            clusteredImage = imerode(clusteredImage,  se);
-            
+            clusteredImage = imerode(clusteredImage,  se); 
+
             debug = 0;
             if debug == 1
                 figure('Name','Closing Output');
@@ -609,112 +433,130 @@ else
                 subplot(2,2,3); imshow( image_thresh(:,:,3), [] ); title('Left');
                 subplot(2,2,4); imshow( image_thresh(:,:,4), [] ); title('Right');
             end
-            
+
             % The thresholded image is simply a binary one or zero indicating
             % the probability that the pixel is part of the target. We will now
             % apply a weighting to the original image pixels based on how many
             % pixels were thresholded correctly.
             image_sum = image_thresh(:,:,1) + ...
-                image_thresh(:,:,2) + ...
-                image_thresh(:,:,3) + ...
-                image_thresh(:,:,4);
-            
+                        image_thresh(:,:,2) + ...
+                        image_thresh(:,:,3) + ...
+                        image_thresh(:,:,4);
+
             image_centroid = target .* image_sum;
-            
-            imageCluster_centroid = target .* clusteredImage;
-            
+
+            imageCluster_centroid = target .* clusteredImage;%% .* (gausswin(29)*gausswin(75)');
+
             % Stop Function for debugging
-            if frameNumber >= 200
+            if frameNumber >= 10000 
                 cow = 1;
             else
                 cow = 0;
             end
-            
+
             debug = 1;
-            if debug == 1 && cow == 1
+            if debug == 1 && cow == 1 %% || detectCLStrigger == 1
                 figure('Name','Centroid Input');
                 subplot(2,2,1); imshow( target,                [] ); title('Original Image');
                 subplot(2,2,2); imshow( image_sum,             [] ); title('Summed Image');
                 subplot(2,2,3); imshow( image_centroid,        [] ); title('Centroid Image');
                 subplot(2,2,4); imshow( imageCluster_centroid, [] ); title('ClusteredImage');
             end
-            
+
             % This is where we start combining the results from the
             % multiple algorithms to help make the design more robust.
             meanMLE = mean( image_centroid(:) );
             varMLE  = var(  image_centroid(:) );
-            
+
             meanCLS = mean( imageCluster_centroid(:) );
             varCluster  = var(  imageCluster_centroid(:) );
-            
+
             disp( [ 'Frame Number = ', num2str(frameNumber) ]);
             disp( ['MLE: mean =', num2str(meanMLE), ' var = ', num2str(varMLE) ] );
             disp( ['CLS: mean =', num2str(meanCLS), ' var = ', num2str(varCluster) ] );
-            
+
             % This is a running average of the means. During areas where we
             % have large disparities between results, there have been large
             % changes in the mean. We will use this as a measure of when one
             % algorithm fails.
-            alpha = 0.30; % Rate of change
-            
-            if frameNumber == 1
+            alpha = 0.20; % Rate of change
+
+            if frameNumber == 1 
                 % Inital setting
                 meanAVGMLE = meanMLE;
                 meanAVGCLS = meanCLS;
             else
-                meanAVGMLE = (1 - alpha)*meanAVGMLE - alpha*meanMLE;
-                meanAVGCLS = (1 - alpha)*meanAVGCLS - alpha*meanCLS;
+                meanAVGMLE = (1 - alpha)*meanAVGMLE + alpha*meanMLE;
+                meanAVGCLS = (1 - alpha)*meanAVGCLS + alpha*meanCLS;
             end
-            
-            
-            % Delta changes
-            changeDetect = 0.60; % 40 Percent change
-            if( abs(meanAVGMLE - meanMLE) > changeDetect )
+
+            % Detect delta changes between target means from previous frames.
+            % This is a means of determining if an algorithm has failed and is
+            % unable to recover. An alternative algorithm will be used in it's
+            % place as a meansure of fixing things. When an algo failes, its
+            % mean value is stored and used as an indicator for when the algo
+            % has returned to a working state.
+            changeDetect = 0.20; % Percent change
+
+            % Replace comparison variable to stored mean value when the algo
+            % failed.
+            if detectMLEtrigger == 1
+                meanAVGMLE = meanAVGMLEsaved;
+            end
+            if detectCLStrigger == 1
+                meanAVGCLS   = meanAVGCLSsaved;
+                changeDetect = 0.05;
+            end
+
+            % Determine if the algo has failed or not.
+            if( abs(meanAVGMLE - meanMLE)/meanAVGMLE > changeDetect )
                 detectMLEtrigger = 1;
+                meanAVGMLEsaved = meanAVGMLE;
             else
                 detectMLEtrigger = 0;
             end
-            
-            if( abs(meanAVGCLS - meanCLS) > changeDetect )
+
+            if( abs(meanAVGCLS - meanCLS)/meanAVGCLS > changeDetect )
                 detectCLStrigger = 1;
+                meanAVGCLSsaved = meanAVGCLS;
             else
                 detectCLStrigger = 0;
             end
-            
-            % Use on algorith over the other if the detection change has been
+
+            % Use one algorithm over the other if the detection change has been
             % triggered.
             if detectCLStrigger == 1
                 [centroid_x, centroid_y] = centroid( image_centroid ); % MLE
             else
                 [centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
             end
-            
+
             % Finally, we will find the centroid of the target
             %[centroid_x, centroid_y] = centroid( image_centroid ); % MLE
-            
+
             %[centroid_x, centroid_y] = centroid( imageCluster_centroid ); % Clustering
-            
+
             % An offset must be added to the centroid locations because the
             % centroid was found for only the target region. This is a smaller
             % bounding box, so we must translate this into the original large
             % image space.
             centroid_x = centroid_x + targetLoc.x;
             centroid_y = centroid_y + targetLoc.y;
-            
+
             % These lines of code are used for detecting the error between the
             % tracking algorithms on a single frame basis. They only use the
             % actual location and not the kalman filter outputs.
             %centroid_x = centroid_x + handles.targetLocation.x(frameNumber);
             %centroid_y = centroid_y + handles.targetLocation.y(frameNumber);
-            
-            
+
+
             %% Future Target Location Estimation
             % Rish: This is where you will add your kalman filtering code.
             % 1) Kalman Filter - Find estimated location on next frame
             % 2) Produce Error Graph - Show user how well we are doing
-            
+
             Z = [centroid_x;centroid_y; 0; 0];    % Updated Location
-            
+
             if( get(handles.kalmanFiltSTD,'Value') == 1 )
                 % Kalman filter
                 [X,P] = kalman_filter(X, P, Z, measurement_noise, process_noise, A, B);
