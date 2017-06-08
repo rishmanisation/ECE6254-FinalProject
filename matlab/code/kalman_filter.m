@@ -1,6 +1,5 @@
 function [X,P] = kalman_filter(X,P,Z,measurement_noise,process_noise,A,B)
-%UNTITLED3 Summary of this function goes here
-%   Detailed explanation goes here
+% Rishabh Ananthan
 % Reference :   http://studentdavestutorials.weebly.com/object-tracking-2d-kalman-filter.html
 %               http://www.youtube.com/watch?v=GBYW1j9lC1I
 %Inputs Mean and covariance
